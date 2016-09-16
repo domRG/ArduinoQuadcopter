@@ -18,6 +18,16 @@ Servo frontLeft, frontRight, backLeft, backRight;
 const int LED_PIN = 13; // (Arduino is 13, Teensy is 11, Teensy++ is 6)
 bool blinkState = false;
 
+//getting delta-rotation variables
+float prevRot[] = {0,0,0}; //gX(r) gY(p) gZ(y)
+float mpuReturn[] = {0,0,0,0,0,0,0,0,0}; //aX aY aZ gX(r) gY(p) gZ(y) gRX(r) gRY(p) gRZ(y) +roll = left up right down -pitch = front down back up
+float prevReadTime = 0;
+float currentReadTime = 0;
+float readDuration = 0;
+float rotRate[] = {0,0,0};
+float rotError[] = {0,0,0}; //rpy (xyz)
+float control[] = {0,0,0,0};
+
 // MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
@@ -37,8 +47,6 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
-
-float mpuReturn[] = {0,0,0,0,0,0}; //aX aY aZ gX(r) gY(p) gZ(y)
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
 
@@ -105,6 +113,23 @@ void mpuBegin(){
     pinMode(LED_PIN, OUTPUT);
 }
 
+void mpuCalculateRate(){                          //float prevRot[] = {0,0,0}; //gX(r) gY(p) gZ(y)
+                                                  //float mpuReturn[] = {0,0,0,0,0,0}; //aX aY aZ gX(r) gY(p) gZ(y)
+                                                  //float prevReadTime = 0;
+                                                  //float currentReadTime = 0;
+                                                  //float readDuration = 0;
+                                                  //float rotRate[] = {0,0,0};
+  readDuration = currentReadTime - prevReadTime;
+  mpuReturn[6] = (mpuReturn[3]-prevRot[0])/readDuration;
+  prevRot[0] = mpuReturn[3];
+  mpuReturn[7] = (mpuReturn[4]-prevRot[1])/readDuration;
+  prevRot[1] = mpuReturn[4];
+  mpuReturn[8] = (mpuReturn[5]-prevRot[2])/readDuration;
+  prevRot[2] = mpuReturn[5];
+  prevReadTime = currentReadTime;
+  
+}
+
 void mpuRunScript(){
   // reset interrupt flag and get INT_STATUS byte
   mpuInterrupt = false;
@@ -129,22 +154,28 @@ void mpuRunScript(){
     // track FIFO count here in case there is > 1 packet available
     // (this lets us immediately read more without waiting for an interrupt)
     fifoCount -= packetSize;
+
+    
     
     #ifdef OUTPUT_READABLE_YAWPITCHROLL
       // display Euler angles in degrees
+      currentReadTime = millis() / 1000.0;
       mpu.dmpGetQuaternion(&q, fifoBuffer);
       mpu.dmpGetGravity(&gravity, &q);
       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-      Serial.print("ypr    ");
+      Serial.print("\typr\t\t");
       Serial.print(ypr[0] * 180/M_PI);
       mpuReturn[5] = ypr[0] * 180/M_PI;
-      Serial.print("  ");
+      Serial.print("\t");
       Serial.print(ypr[1] * 180/M_PI);
       mpuReturn[4] = ypr[1] * 180/M_PI;
-      Serial.print("  ");
+      Serial.print("\t");
       Serial.print(ypr[2] * 180/M_PI);
       mpuReturn[3] = ypr[2] * 180/M_PI;
-      Serial.print("  "); Serial.print(mpuReturn[3]); Serial.print("  "); Serial.print(mpuReturn[4]); Serial.print("  "); Serial.print(mpuReturn[5]);
+      mpuCalculateRate();
+      Serial.print("\tchange in time "); Serial.print(readDuration);
+      Serial.print("\trateRoll "); Serial.print(mpuReturn[6]); Serial.print("\tratePitch "); Serial.print(mpuReturn[7]); Serial.print("\trateYaw "); Serial.print(mpuReturn[8]);
+      
     #endif
 
     #ifdef OUTPUT_READABLE_WORLDACCEL
@@ -177,7 +208,7 @@ void mpuRunScript(){
 
 int speeds[] = {0,0,0,0}; //fL,fR,bL,bR
 int maxSpeed = 2400;
-int minSpeed = 544;
+int minSpeed = 900;
 int action;
 bool crash = false;
 
@@ -206,10 +237,10 @@ void servoBegin(){
     //delay(2250);
     Serial.print("\n\rBeep");
     Serial.print("\n\rSet to HIGH");
-    fL(2400);
-    fR(2400);
-    bL(2400);
-    bR(2400);
+    fL(maxSpeed);
+    fR(maxSpeed);
+    bL(maxSpeed);
+    bR(maxSpeed);
     delay(1164);
     Serial.print("\n\rBeep Beep");
     Serial.print("\n\rSet to LOW");
@@ -227,7 +258,7 @@ void servoBegin(){
     bR(0);
   }
   Serial.print("\n\rInitialisation complete. Begin");
-  speeds[0] = speeds[1] = speeds[2] = speeds [3] = 500;
+  speeds[0] = speeds[1] = speeds[2] = speeds [3] = minSpeed;
 }
 
 // Servo control declatation
@@ -250,46 +281,94 @@ void servoSpeed(){
   bR(speeds[3]);
 }
 
-// Balance
-void balance(){ //back left as control (dont adjust)
+//PID --> P
+void pidRot(){
+  /*
+   * error[x] = rot[x] - desired[x]
+   * (5) = (5) - (0)
+   * 1&3 increase + 5*0.5 
+   * 
+   */
+   float Kp = 0.5;
+   float Ki = 1;
+   float Kd = 1;
+   rotError[0] = mpuReturn[6] - control[0];
+   speeds[1] += (int) (0.5 + rotError[0] * Kp);
+   speeds[3] += (int) (0.5 + rotError[0] * Kp);
+   rotError[1] = mpuReturn[7] - control[1];
+   speeds[0] -= (int) (0.5 + rotError[1] * Kp);
+   speeds[1] -= (int) (0.5 + rotError[1] * Kp);
+   if(speeds[0] > maxSpeed){
+    speeds[0] = maxSpeed;
+   }
+   if(speeds[0] < minSpeed){
+    speeds[0] = minSpeed;
+   }
+   if(speeds[1] > maxSpeed){
+    speeds[1] = maxSpeed;
+   }
+   if(speeds[1] < minSpeed){
+    speeds[1] = minSpeed;
+   }
+   if(speeds[2] > maxSpeed){
+    speeds[2] = maxSpeed;
+   }
+   if(speeds[2] < minSpeed){
+    speeds[2] = minSpeed;
+   }
+   if(speeds[3] > maxSpeed){
+    speeds[3] = maxSpeed;
+   }
+   if(speeds[3] < minSpeed){
+    speeds[3] = minSpeed;
+   }
+   servoSpeed();
+}
+
+
+
+// Balance Rotation
+void balanceRot(){ //back left as control (dont adjust)
   //positive roll over top from left to right
   //positive pitch over top from front to back
   if(mpuReturn[3] > 0.5){
-    if(speeds[1] < 2400){
+    if(speeds[1] < maxSpeed){
       speeds[1]+=1;
     }
-    if(speeds[3] < 2400){
+    if(speeds[3] < maxSpeed){
       speeds[3]+=1;
     }
   }
   else if(mpuReturn[3] < -0.5){
-    if(speeds[1] > 500){
+    if(speeds[1] > minSpeed){
       speeds[1]-=1;
     }
-    if(speeds[3] > 500){
+    if(speeds[3] > minSpeed){
       speeds[3]-=1;
     }
   }
   if(mpuReturn[4] > 0.5){
-    if(speeds[0] > 500){
+    if(speeds[0] > minSpeed){
       speeds[0]-=1;
     }
-    if(speeds[1] > 500){
+    if(speeds[1] > minSpeed){
       speeds[1]-=1;
     }
   }
   else if(mpuReturn[4] < -0.5){
-    if(speeds[0] < 2400){
+    if(speeds[0] < maxSpeed){
       speeds[0]+=1;
     }
-    if(speeds[1] < 2400){
+    if(speeds[1] < maxSpeed){
       speeds[1]+=1;
     }
   }
   servoSpeed();
 }
 
+int runNumber = 1;
 void servoRunScript(){
+  runNumber = (runNumber + 1)%2;
   action = Serial.read();
   if(action == ' '){//"w"=119 "s"=115 " "=32
     speeds[0] = 0;
@@ -312,11 +391,25 @@ void servoRunScript(){
     speeds[2]-=100;
   }
   if(crash == false){
-    balance();
+    /*if(runNumber == 1){
+      balanceRot();
+    }
+    else if(runNumber == 0){
+      balanceRate();
+    }*/
+    pidRot();
   }
   if(action == 'r'){
     crash = false;
-    speeds[0] = speeds[1] = speeds[2] = speeds [3] = 500;
+    speeds[0] = speeds[1] = speeds[2] = speeds [3] = minSpeed;
+  }
+  if(mpuReturn[3]>30 || mpuReturn[3]<-30 || mpuReturn[4]>30 || mpuReturn[4]<-30){
+    speeds[0] = 0;
+    speeds[1] = 0;
+    speeds[2] = 0;
+    speeds[3] = 0;
+    crash = true;
+    servoSpeed();
   }
   Serial.print("\n\r fL: "); Serial.print(speeds[0]); Serial.print(" fR: "); Serial.print(speeds[1]); Serial.print(" bL: "); Serial.print(speeds[2]); Serial.print(" bR: "); Serial.print(speeds[3]);
 }
