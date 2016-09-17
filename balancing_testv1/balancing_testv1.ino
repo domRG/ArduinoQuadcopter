@@ -27,6 +27,9 @@ float readDuration = 0;
 float rotRate[] = {0,0,0};
 float rotError[] = {0,0,0}; //rpy (xyz)
 float control[] = {0,0,0,0};
+float Kp = 0.5;
+float Ki = 0.5;
+float Kd = 1;
 
 // MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
@@ -289,9 +292,6 @@ void pidRot(){
    * 1&3 increase + 5*0.5 
    * 
    */
-   float Kp = 0.5;
-   float Ki = 0.5;
-   float Kd = 1;
    float xErrorI = 0;
    float yErrorI = 0;
    rotError[0] = mpuReturn[6] - control[0];
@@ -373,45 +373,68 @@ void balanceRot(){ //back left as control (dont adjust)
 int runNumber = 1;
 void servoRunScript(){
   action = Serial.read();
-  if(action == ' '){//"w"=119 "s"=115 " "=32
-    speeds[0] = 0;
-    speeds[1] = 0;
-    speeds[2] = 0;
-    speeds[3] = 0;
-    crash = true;
-    servoSpeed();
+  if(crash == false){
+    switch (action){
+      case ' ':
+        speeds[0] = 0;
+        speeds[1] = 0;
+        speeds[2] = 0;
+        speeds[3] = 0;
+        crash = true;
+        servoSpeed();
+        break;
+      case 'r':
+        crash = false;
+        speeds[0] = speeds[1] = speeds[2] = speeds [3] = minSpeed;
+        break;
+      case 'w':
+        speeds[2]+=5;
+        break;
+      case 's':
+        speeds[2]-=5;
+        break;
+      case 'q':
+        speeds[2]+=100;
+        break;
+      case 'a':
+        speeds[2]-=100;
+        break;
+      case 't':
+        runNumber = (runNumber + 1)%2;
+        break;
+      case 'u':
+        Kp += 1;
+        break;
+      case 'j':
+        Kp -= 1;
+        break;
+      case 'm':
+        Kp += 0.5;
+        break;
+      case 'i':
+        Ki += 1;
+        break;
+      case 'k':
+        Ki -= 1;
+        break;
+      case ',':
+        Ki += 0.5;
+        break;
+    }
   }
-  if(action == 'w' && crash == false){
-    speeds[2]+=2;
-  }
-  if(action == 'o' && crash == false){
-    speeds[2]+=100;
-  }
-  if(action == 's' && crash == false){
-    speeds[2]-=2;
-  }
-  if(action == 'l' && crash == false){
-    speeds[2]-=100;
-  }
-  if(action == 't'){
-    runNumber = (runNumber + 1)%2;
-  }
+
   if(crash == false){
     if(runNumber == 1){
       balanceRot();
-      Serial.print("\n\rROTATION");
+      Serial.print("\n\rROTATION"); Serial.print("\tKp = "); Serial.print(Kp); Serial.print("\tKi = "); Serial.print(Ki);
     }
     else if(runNumber == 0){
       pidRot();
-      Serial.print("\n\rPID");
+      Serial.print("\n\rPID"); Serial.print("\tKp = "); Serial.print(Kp); Serial.print("\tKi = "); Serial.print(Ki);
     }
-    
   }
-  if(action == 'r'){
-    crash = false;
-    speeds[0] = speeds[1] = speeds[2] = speeds [3] = minSpeed;
-  }
-  if(mpuReturn[3]>30 || mpuReturn[3]<-30 || mpuReturn[4]>30 || mpuReturn[4]<-30){
+  
+  if(mpuReturn[3]>15 || mpuReturn[3]<-15 || mpuReturn[4]>15 || mpuReturn[4]<-15){
     speeds[0] = 0;
     speeds[1] = 0;
     speeds[2] = 0;
