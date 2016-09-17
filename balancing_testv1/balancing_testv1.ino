@@ -281,7 +281,7 @@ void servoSpeed(){
   bR(speeds[3]);
 }
 
-//PID --> P
+//PID --> PI
 void pidRot(){
   /*
    * error[x] = rot[x] - desired[x]
@@ -290,14 +290,18 @@ void pidRot(){
    * 
    */
    float Kp = 0.5;
-   float Ki = 1;
+   float Ki = 0.5;
    float Kd = 1;
+   float xErrorI = 0;
+   float yErrorI = 0;
    rotError[0] = mpuReturn[6] - control[0];
-   speeds[1] += (int) (0.5 + rotError[0] * Kp);
-   speeds[3] += (int) (0.5 + rotError[0] * Kp);
+   xErrorI += rotError[0];
+   speeds[1] += (int)(0.5 + rotError[0] * Kp) + (int)(0.5 + xErrorI * Ki);
+   speeds[3] += (int)(0.5 + rotError[0] * Kp) + (int)(0.5 + xErrorI * Ki);
    rotError[1] = mpuReturn[7] - control[1];
-   speeds[0] -= (int) (0.5 + rotError[1] * Kp);
-   speeds[1] -= (int) (0.5 + rotError[1] * Kp);
+   yErrorI += rotError[1];
+   speeds[0] -= (int)(0.5 + rotError[1] * Kp) + (int)(0.5 + yErrorI * Ki);
+   speeds[1] -= (int)(0.5 + rotError[1] * Kp) + (int)(0.5 + yErrorI * Ki);
    if(speeds[0] > maxSpeed){
     speeds[0] = maxSpeed;
    }
@@ -368,7 +372,6 @@ void balanceRot(){ //back left as control (dont adjust)
 
 int runNumber = 1;
 void servoRunScript(){
-  runNumber = (runNumber + 1)%2;
   action = Serial.read();
   if(action == ' '){//"w"=119 "s"=115 " "=32
     speeds[0] = 0;
@@ -390,14 +393,19 @@ void servoRunScript(){
   if(action == 'l' && crash == false){
     speeds[2]-=100;
   }
+  if(action == 't'){
+    runNumber = (runNumber + 1)%2;
+  }
   if(crash == false){
-    /*if(runNumber == 1){
+    if(runNumber == 1){
       balanceRot();
+      Serial.print("\n\rROTATION");
     }
     else if(runNumber == 0){
-      balanceRate();
-    }*/
-    pidRot();
+      pidRot();
+      Serial.print("\n\rPID");
+    }
+    
   }
   if(action == 'r'){
     crash = false;
