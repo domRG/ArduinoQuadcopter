@@ -3,11 +3,13 @@
 //#include "MPU6050.h" // not necessary if using MotionApps include file
 #include "Wire.h"
 #include "helper_3dmath.h"
-MPU6050 mpu;
+#include <SoftwareSerial.h>
 #include <Servo.h>
 #define OUTPUT_READABLE_YAWPITCHROLL
 #define OUTPUT_READABLE_WORLDACCEL
 Servo frontLeft, frontRight, backLeft, backRight;
+MPU6050 mpu;
+SoftwareSerial mySerial(11,12);//RX TX
 
 // ================================================================================
 // ================================================================================
@@ -30,6 +32,14 @@ float control[] = {0,0,0,0};
 float Kp = 0.5;
 float Ki = 0.5;
 float Kd = 1;
+int runNumber = 1;
+float speeds[] = {0,0,0,0}; //fL,fR,bL,bR
+int maxSpeed = 2400;
+int minSpeed = 900;
+int action;
+bool crash = true;
+float balancePrecision = 0.1;
+int count = 0;
 
 // MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
@@ -65,15 +75,15 @@ void mpuBegin(){
   Wire.begin();
     TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)
     
-    Serial.println(F("Initializing I2C devices..."));
+    mySerial.println(F("Initializing I2C devices..."));
     mpu.initialize();
 
     // verify connection
-    Serial.println(F("Testing device connections..."));
-    Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
+    mySerial.println(F("Testing device connections..."));
+    mySerial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
     // load and configure the DMP
-    Serial.println(F("Initializing DMP..."));
+    mySerial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
 
     // supply your own gyro offsets here, scaled for min sensitivity
@@ -88,16 +98,16 @@ void mpuBegin(){
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
         // turn on the DMP, now that it's ready
-        Serial.println(F("Enabling DMP..."));
+        mySerial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
 
         // enable Arduino interrupt detection
-        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
+        mySerial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
         attachInterrupt(0, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
         // set our DMP Ready flag so the main loop() function knows it's okay to use it
-        Serial.println(F("DMP ready! Waiting for first interrupt..."));
+        mySerial.println(F("DMP ready! Waiting for first interrupt..."));
         dmpReady = true;
 
         // get expected DMP packet size for later comparison
@@ -107,9 +117,9 @@ void mpuBegin(){
         // 1 = initial memory load failed
         // 2 = DMP configuration updates failed
         // (if it's going to break, usually the code will be 1)
-        Serial.print(F("DMP Initialization failed (code "));
-        Serial.print(devStatus);
-        Serial.println(F(")"));
+        mySerial.print(F("DMP Initialization failed (code "));
+        mySerial.print(devStatus);
+        mySerial.println(F(")"));
     }
 
     // configure LED for output
@@ -145,7 +155,7 @@ void mpuRunScript(){
   if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
     // reset so we can continue cleanly
     mpu.resetFIFO();
-    Serial.println(F("\n\rFIFO overflow, resetting FIFO"));
+    mySerial.println(F("\n\rFIFO overflow, resetting FIFO"));
     // otherwise, check for DMP data ready interrupt (this should happen frequently)
   }
   else if (mpuIntStatus & 0x02) {
@@ -166,18 +176,18 @@ void mpuRunScript(){
       mpu.dmpGetQuaternion(&q, fifoBuffer);
       mpu.dmpGetGravity(&gravity, &q);
       mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-      Serial.print("\typr\t\t");
-      Serial.print(ypr[0] * 180/M_PI);
+      //mySerial.print("\typr\t\t");
+      //mySerial.print(ypr[0] * 180/M_PI);
       mpuReturn[5] = ypr[0] * 180/M_PI;
-      Serial.print("\t");
-      Serial.print(ypr[1] * 180/M_PI);
+      //mySerial.print("\t");
+      //mySerial.print(ypr[1] * 180/M_PI);
       mpuReturn[4] = ypr[1] * 180/M_PI;
-      Serial.print("\t");
-      Serial.print(ypr[2] * 180/M_PI);
+      //mySerial.print("\t");
+      //mySerial.print(ypr[2] * 180/M_PI);
       mpuReturn[3] = ypr[2] * 180/M_PI;
       mpuCalculateRate();
-      Serial.print("\tchange in time "); Serial.print(readDuration);
-      Serial.print("\trateRoll "); Serial.print(mpuReturn[6]); Serial.print("\tratePitch "); Serial.print(mpuReturn[7]); Serial.print("\trateYaw "); Serial.print(mpuReturn[8]);
+      //mySerial.print("\tchange in time "); mySerial.print(readDuration);
+      //mySerial.print("\trateRoll "); mySerial.print(mpuReturn[6]); mySerial.print("\tratePitch "); mySerial.print(mpuReturn[7]); mySerial.print("\trateYaw "); mySerial.print(mpuReturn[8]);
       
     #endif
 
@@ -189,12 +199,12 @@ void mpuRunScript(){
       mpu.dmpGetGravity(&gravity, &q);
       mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
       mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-      //Serial.print("aworld    ");
-      //Serial.print(aaWorld.x);
-      //Serial.print("    ");
-      //Serial.print(aaWorld.y);
-      //Serial.print("    ");
-      //Serial.println(aaWorld.z);
+      //mySerial.print("aworld    ");
+      //mySerial.print(aaWorld.x);
+      //mySerial.print("    ");
+      //mySerial.print(aaWorld.y);
+      //mySerial.print("    ");
+      //mySerial.println(aaWorld.z);
     #endif
   
     // blink LED to indicate activity
@@ -209,12 +219,6 @@ void mpuRunScript(){
 // ================================================================================
 // ================================================================================
 
-int speeds[] = {0,0,0,0}; //fL,fR,bL,bR
-int maxSpeed = 2400;
-int minSpeed = 900;
-int action;
-bool crash = false;
-
 // ========================================
 // =====FUNCTIONS                     =====
 // ========================================
@@ -225,43 +229,44 @@ void servoBegin(){
   frontRight.attach(9);
   backLeft.attach(5);
   backRight.attach(3);
-  action = Serial.read();
+  action = mySerial.read();
   fL(0);
   fR(0);
   bL(0);
   bR(0);
-  action = Serial.read();
-  Serial.print("\n\n\rEnter '1' as the ESCs beep for full calibration of servos\n\rOr '2' to skip servo calibration");
+  action = mySerial.read();
+  mySerial.print("\n\n\rEnter '1' as the ESCs beep for full calibration of servos\n\rOr '2' to skip servo calibration");
   while(!(action == 49 || action == 50)){
-    action = Serial.read();
+    action = mySerial.read();
   }
   if(action == 49){
-    Serial.print("\n\rInitialising. Please wait...");
+    mySerial.print("\n\rInitialising. Please wait...");
     //delay(2250);
-    Serial.print("\n\rBeep");
-    Serial.print("\n\rSet to HIGH");
+    mySerial.print("\n\rBeep");
+    mySerial.print("\n\rSet to HIGH");
     fL(maxSpeed);
     fR(maxSpeed);
     bL(maxSpeed);
     bR(maxSpeed);
     delay(1164);
-    Serial.print("\n\rBeep Beep");
-    Serial.print("\n\rSet to LOW");
+    mySerial.print("\n\rBeep Beep");
+    mySerial.print("\n\rSet to LOW");
     fL(0);
     fR(0);
     bL(0);
     bR(0);
-    Serial.print("\n\rBeep Beep Beep");
+    mySerial.print("\n\rBeep Beep Beep");
+    crash = true;
   }
   if(action == 50){
-    Serial.print("\n\rSkipping servo calibration...");
+    mySerial.print("\n\rSkipping servo calibration...");
     fL(0);
     fR(0);
     bL(0);
     bR(0);
   }
-  Serial.print("\n\rInitialisation complete. Begin");
-  speeds[0] = speeds[1] = speeds[2] = speeds [3] = minSpeed;
+  mySerial.print("\n\rInitialisation complete. Begin");
+  crash = true;
 }
 
 // Servo control declatation
@@ -271,7 +276,7 @@ void fL(int s){
 void fR(int s){
   frontRight.writeMicroseconds(s);
 }
-void bL(int s){
+void bL(float s){
   backLeft.writeMicroseconds(s);
 }
 void bR(int s){
@@ -294,14 +299,29 @@ void pidRot(){
    */
    float xErrorI = 0;
    float yErrorI = 0;
+   
    rotError[0] = mpuReturn[6] - control[0];
+   if(rotError[0] < balancePrecision && rotError[0] > -balancePrecision){
+    rotError[0] = 0;
+   }
+   
    xErrorI += rotError[0];
+   
    speeds[1] += (int)(0.5 + rotError[0] * Kp) + (int)(0.5 + xErrorI * Ki);
    speeds[3] += (int)(0.5 + rotError[0] * Kp) + (int)(0.5 + xErrorI * Ki);
+   
    rotError[1] = mpuReturn[7] - control[1];
+   if(rotError[1] < balancePrecision && rotError[1] > -balancePrecision){
+    rotError[1] = 0;
+   }
+   
    yErrorI += rotError[1];
+   
    speeds[0] -= (int)(0.5 + rotError[1] * Kp) + (int)(0.5 + yErrorI * Ki);
    speeds[1] -= (int)(0.5 + rotError[1] * Kp) + (int)(0.5 + yErrorI * Ki);
+
+  mySerial.print("\t"); mySerial.print(rotError[0]); mySerial.print(rotError[1]); mySerial.print(xErrorI); mySerial.print(yErrorI);
+   
    if(speeds[0] > maxSpeed){
     speeds[0] = maxSpeed;
    }
@@ -335,7 +355,7 @@ void pidRot(){
 void balanceRot(){ //back left as control (dont adjust)
   //positive roll over top from left to right
   //positive pitch over top from front to back
-  if(mpuReturn[3] > 0.5){
+  if(mpuReturn[3] > balancePrecision){
     if(speeds[1] < maxSpeed){
       speeds[1]+=1;
     }
@@ -343,7 +363,7 @@ void balanceRot(){ //back left as control (dont adjust)
       speeds[3]+=1;
     }
   }
-  else if(mpuReturn[3] < -0.5){
+  else if(mpuReturn[3] < -balancePrecision){
     if(speeds[1] > minSpeed){
       speeds[1]-=1;
     }
@@ -351,7 +371,7 @@ void balanceRot(){ //back left as control (dont adjust)
       speeds[3]-=1;
     }
   }
-  if(mpuReturn[4] > 0.5){
+  if(mpuReturn[4] > balancePrecision){
     if(speeds[0] > minSpeed){
       speeds[0]-=1;
     }
@@ -359,7 +379,7 @@ void balanceRot(){ //back left as control (dont adjust)
       speeds[1]-=1;
     }
   }
-  else if(mpuReturn[4] < -0.5){
+  else if(mpuReturn[4] < -balancePrecision){
     if(speeds[0] < maxSpeed){
       speeds[0]+=1;
     }
@@ -370,9 +390,12 @@ void balanceRot(){ //back left as control (dont adjust)
   servoSpeed();
 }
 
-int runNumber = 1;
 void servoRunScript(){
-  action = Serial.read();
+  action = mySerial.read();
+  if(action == 'r'){
+    crash = false;
+    speeds[0] = speeds[1] = speeds[2] = speeds [3] = minSpeed;
+  }
   if(crash == false){
     switch (action){
       case ' ':
@@ -382,10 +405,6 @@ void servoRunScript(){
         speeds[3] = 0;
         crash = true;
         servoSpeed();
-        break;
-      case 'r':
-        crash = false;
-        speeds[0] = speeds[1] = speeds[2] = speeds [3] = minSpeed;
         break;
       case 'w':
         speeds[2]+=5;
@@ -426,11 +445,11 @@ void servoRunScript(){
   if(crash == false){
     if(runNumber == 1){
       balanceRot();
-      Serial.print("\n\rROTATION"); Serial.print("\tKp = "); Serial.print(Kp); Serial.print("\tKi = "); Serial.print(Ki);
+      mySerial.print("\tROTATION"); mySerial.print("\tKp = "); mySerial.print(Kp); mySerial.print("\tKi = "); mySerial.print(Ki);
     }
     else if(runNumber == 0){
       pidRot();
-      Serial.print("\n\rPID"); Serial.print("\tKp = "); Serial.print(Kp); Serial.print("\tKi = "); Serial.print(Ki);
+      mySerial.print("\tPID"); mySerial.print("\tKp = "); mySerial.print(Kp); mySerial.print("\tKi = "); mySerial.print(Ki);
     }
   }
   
@@ -442,7 +461,7 @@ void servoRunScript(){
     crash = true;
     servoSpeed();
   }
-  Serial.print("\n\r fL: "); Serial.print(speeds[0]); Serial.print(" fR: "); Serial.print(speeds[1]); Serial.print(" bL: "); Serial.print(speeds[2]); Serial.print(" bR: "); Serial.print(speeds[3]);
+  mySerial.print("\n\r fL: "); mySerial.print(speeds[0]); mySerial.print(" fR: "); mySerial.print(speeds[1]); mySerial.print(" bL: "); mySerial.print(speeds[2]); mySerial.print(" bR: "); mySerial.print(speeds[3]);
 }
 // ========================================================================================================================
 
@@ -451,13 +470,14 @@ void servoRunScript(){
 // ================================================================================
 
 void setup(){
-    Serial.begin(115200);
-    mpuBegin();
-    Serial.print("\n\n\rBooting, please wait...");
-    delay(10000);
-    mpu.resetFIFO();
-    Serial.print("\n\n\rBoot complete");
-    servoBegin();
+    mySerial.begin(9600);
+    //mpuBegin();
+    mySerial.print("\n\n\rBooting, please wait...");
+    //delay(10000);
+    //mpu.resetFIFO();
+    mySerial.print("\n\n\rBoot complete");
+    //servoBegin();
+    backLeft.attach(5,900,2400);
 }
 
 
@@ -467,6 +487,9 @@ void setup(){
 // ================================================================
 
 void loop() {
+
+    /*
+
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
 
@@ -477,11 +500,54 @@ void loop() {
         // stuff to see if mpuInterrupt is true, and if so, "break;" from the
         // while() loop to immediately process the MPU data
         
-        //servoRunScript();
-        //run the servo script
+        
     }
 
-    servoRunScript();
-    mpuRunScript();
-    //run the mpu script
+    servoRunScript(); //run the servo script
+    mpuRunScript(); //run the mpu script
+
+    */
+    action = mySerial.read();
+    if(action == 'r'){
+      crash = false;
+    }
+    if(crash == false){
+      switch(action){
+        case ' ':
+          crash = true;
+          break;
+        case 'w':
+          speeds[0] += 100;
+          break;
+        case 's':
+          speeds[0] -= 100;
+          break;
+        case 'q':
+          speeds[0] += 5;
+          break;
+        case 'a':
+          speeds[0] -= 5;
+          break;
+        case 'd':
+          speeds[0] -= 0.25;
+          break;
+        case 'e':
+          speeds[0] += 0.25;
+          break;
+        case 'f':
+          speeds[0] = maxSpeed;
+          break;
+        case 'v':
+          speeds[0] = minSpeed;
+          break;
+      }
+    bL(speeds[0]);//meant to be bL
+    }
+    if(crash == true){
+      speeds[0] = 0;
+      bL(speeds[0]);//meant to be bL
+    }
+    mySerial.print(crash); mySerial.print("\t\t");
+    mySerial.println(speeds[0]);
 }
+
