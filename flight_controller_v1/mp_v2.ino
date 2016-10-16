@@ -194,10 +194,12 @@ void mpuSetup() {
     devStatus = mpu.dmpInitialize();
 
     // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(220);
-    mpu.setYGyroOffset(76);
-    mpu.setZGyroOffset(-85);
-    mpu.setZAccelOffset(1788); // 1688 factory default for my test chip
+    mpu.setXGyroOffset(503); //497
+    mpu.setYGyroOffset(-50); //-53
+    mpu.setZGyroOffset(-57); //-57
+    mpu.setZAccelOffset(880); //879
+    mpu.setXAccelOffset(-3150); //-3109
+    mpu.setYAccelOffset(1136); //1139
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
@@ -242,7 +244,7 @@ float* mpuRunScript() {
 
     // wait for MPU interrupt or extra packet(s) available
     while (!mpuInterrupt && fifoCount < packetSize) {
-        Serial.print("\n\rWaiting for mpu");
+        //Serial.print("\n\rWaiting for mpu");
         // other program behavior stuff here
         // .
         // .

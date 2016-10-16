@@ -4,7 +4,7 @@
 double pidSetpoint, pidInput, pidOutput;
 
 //Specify the links and initial tuning parameters
-double Kp=1, Ki=0, Kd=0;
+double Kp= 0.001, Ki= 0.001, Kd= 0.002;
 
 PID xPID(&pidInput, &pidOutput, &pidSetpoint, Kp, Ki, Kd, DIRECT);
 

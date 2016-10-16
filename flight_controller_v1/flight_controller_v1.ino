@@ -15,9 +15,10 @@ int count = 0;
 bool crash = true;
 int action;
 int highSpeed = 2400;
-int lowSpeed = 1000;
+int lowSpeed = 760;
 int off = 0;
 int runNumber = 1;
+int crashAngle = 30;
 
 void getAction()
 {
@@ -32,6 +33,7 @@ void getAction()
     //mySerial.print("\n\rBeep");
     //mySerial.print("\n\rSet to HIGH");
     speeds[0] = speeds[1] = speeds[2] = speeds[3] = highSpeed;
+    servoSetSpeeds(speeds);
     action = Serial.read();
     while(!(action == 49)){
       action = Serial.read();
@@ -39,6 +41,7 @@ void getAction()
     //mySerial.print("\n\rBeep Beep");
     //mySerial.print("\n\rSet to LOW");
     speeds[0] = speeds[1] = speeds[2] = speeds[3] = off;
+    servoSetSpeeds(speeds);
     //mySerial.print("\n\rBeep Beep Beep");
     crash = true;
   }
@@ -73,7 +76,9 @@ void readActionUpdateSpeeds(){
   if(action == 'r'){
     crash = false;
     speeds[0] = speeds[1] = speeds[2] = speeds [3] = lowSpeed;
-    control[3] = 1000;
+    control[3] = lowSpeed;
+    delay(100);
+    controlledThrottleIncrease();
   }
   if(crash == true){
     speeds[0] = speeds[1] = speeds[2] = speeds [3] = off;
@@ -87,7 +92,7 @@ void readActionUpdateSpeeds(){
         control[3] = off;
         break;
       case 'w':
-        control[3] += 10;
+        control[3] += 5;
         break;
       case 's':
         control[3] -= 5;
@@ -144,11 +149,21 @@ void clampSpeeds()
 
 void unstableCrash(float* angles)
 {
-  if(angles[3]>15 || angles[3]<-15 || angles[4]>15 || angles[4]<-15)
+  if(angles[3]>crashAngle || angles[3]<-crashAngle || angles[4]>crashAngle || angles[4]<-crashAngle)
   {
     speeds[0] = speeds[1] = speeds[2] = speeds[3] = off;
     control[3] = off;
     crash = true;
+  }
+}
+
+void controlledThrottleIncrease()
+{
+  Serial.print("\n\rIncreasing throttle");
+  for (int i = 0; i <= 20; i++)
+  {
+    control[3]+=1;
+    delay(100);
   }
 }
 
@@ -162,6 +177,7 @@ void setup()
   servoSetup();
   pidSetup();
   Serial.print("\n\rSetup complete");
+  
 }
 //float x[] = {0,0,0,0,0,0,0,0,0};
 //int lastLoop = -1;
@@ -172,7 +188,7 @@ void loop()
   //if (lastLoop >= 0)  loopTime += (now1 - lastLoop);
   //lastLoop = now1;
   float* result = mpuRunScript();
-  if(!crash)
+  if(!crash && control[3] >= 800)
   {
     pidStage(result[3], speeds, control[0]);
   }
