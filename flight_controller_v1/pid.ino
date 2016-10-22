@@ -1,29 +1,56 @@
 #include <PID_v1.h>
 
 //Define Variables we'll be connecting to
-double pidSetpoint, pidInput, pidOutput;
+double pidXDesiredAngle, pidXActualAngle, pidXDesiredRate, pidXActualRate, pidXRateOutput;
 
 //Specify the links and initial tuning parameters
-double Kp= 0.001, Ki= 0.001, Kd= 0.002;
+double stabiliseKp= 0.01, stabiliseKi= 0.00, stabiliseKd= 0.01;
+double rateKp= 0.011, rateKi= 0.00, rateKd= 0.01;
 
-PID xPID(&pidInput, &pidOutput, &pidSetpoint, Kp, Ki, Kd, DIRECT);
+PID xStabilisePID(&pidXActualAngle, &pidXDesiredRate, &pidXDesiredAngle, stabiliseKp, stabiliseKi, stabiliseKd, DIRECT);
+PID xRatePID(&pidXActualRate, &pidXRateOutput, &pidXDesiredRate, rateKp, rateKi, rateKd, DIRECT);
+
+void tuneStabilise(double KpAdd, double KiAdd, double KdAdd)
+{
+  stabiliseKp += KpAdd;
+  stabiliseKi += KiAdd;
+  stabiliseKd += KdAdd;
+  xStabilisePID.SetTunings(stabiliseKp, stabiliseKi, stabiliseKd);
+  Serial.print("\n\r"); Serial.print(stabiliseKp*100); Serial.print("\t"); Serial.print(stabiliseKi*100); Serial.print("\t"); Serial.print(stabiliseKd*100); Serial.print("   /100");
+}
+
+void tuneRate(double KpAdd, double KiAdd, double KdAdd)
+{
+  rateKp += KpAdd;
+  rateKi += KiAdd;
+  rateKd += KdAdd;
+  xRatePID.SetTunings(rateKp, rateKi, rateKd);
+  Serial.print("\n\r"); Serial.print(rateKp*100); Serial.print("\t"); Serial.print(rateKi*100); Serial.print("\t"); Serial.print(rateKd*100); Serial.print("   /100");
+}
 
 void pidSetup()
 {
-  xPID.SetMode(AUTOMATIC);
-  xPID.SetOutputLimits(-90,90);
-  xPID.SetSampleTime(5);
+  xStabilisePID.SetMode(AUTOMATIC);
+  xStabilisePID.SetOutputLimits(-90,90);
+  xStabilisePID.SetSampleTime(5);
+  xRatePID.SetMode(AUTOMATIC);
+  xRatePID.SetOutputLimits(-90,90);
+  xRatePID.SetSampleTime(10);
 }
 
-void pidStage(float rollAngle, float* motorSpeeds, float controlAngle)
+void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
 {
-  pidInput = rollAngle;
-  pidSetpoint = controlAngle;
-  if (xPID.Compute())
+  pidXActualAngle = xActualAngle;
+  pidXActualRate = xActualRate;
+  pidXDesiredAngle = xDesiredAngle;
+  pidXDesiredRate = 0; //for testing
+  
+  if (xRatePID.Compute()) //xStabilisePID.Compute() && 
   {
-    (motorSpeeds)[0] += pidOutput;
-    (motorSpeeds)[1] -= pidOutput;
-    (motorSpeeds)[2] += pidOutput;
-    (motorSpeeds)[3] -= pidOutput;
+    (motorSpeeds)[0] += pidXRateOutput;
+    (motorSpeeds)[1] -= pidXRateOutput;
+    (motorSpeeds)[2] += pidXRateOutput;
+    (motorSpeeds)[3] -= pidXRateOutput;
+    Serial.print("\n\r"); Serial.print(pidXRateOutput);
   }
 }
