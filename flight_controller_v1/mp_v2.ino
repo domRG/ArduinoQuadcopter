@@ -62,6 +62,11 @@ MPU6050 mpu;
 //MPU6050 mpu(0x69); // <-- use for AD0 high
 
 float mpuReturn[] = {0,0,0,0,0,0,0,0,0};
+float mpuRotRate[] = {0,0,0};
+float prevRot[] = {0,0,0}; //gX(r) gY(p) gZ(y)
+float prevReadTime = 0;
+float currentReadTime = 0;
+
 
 /* =========================================================================
    NOTE: In addition to connection 3.3v, GND, SDA, and SCL, this sketch
@@ -232,7 +237,16 @@ void mpuSetup() {
     pinMode(LED_PIN, OUTPUT);
 }
 
-
+void mpuCalculateRate(){
+  float readDuration = currentReadTime - prevReadTime;
+  mpuReturn[6] = (mpuReturn[3]-prevRot[0])/readDuration;
+  prevRot[0] = mpuReturn[3];
+  mpuReturn[7] = (mpuReturn[4]-prevRot[1])/readDuration;
+  prevRot[1] = mpuReturn[4];
+  mpuReturn[8] = (mpuReturn[5]-prevRot[2])/readDuration;
+  prevRot[2] = mpuReturn[5];
+  prevReadTime = currentReadTime;
+}
 
 // ================================================================
 // ===                    MAIN PROGRAM LOOP                     ===
@@ -309,6 +323,7 @@ float* mpuRunScript() {
 
         #ifdef OUTPUT_READABLE_YAWPITCHROLL
             // display Euler angles in degrees
+            currentReadTime = millis() / 1000.0;
             mpu.dmpGetQuaternion(&q, fifoBuffer);
             mpu.dmpGetGravity(&gravity, &q);
             mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
@@ -321,6 +336,8 @@ float* mpuRunScript() {
             //Serial.print("\t");
             //Serial.println(ypr[2] * 180/M_PI);
             mpuReturn[3] = (ypr[2] * 180/M_PI);
+
+            mpuCalculateRate();
         #endif
 
         #ifdef OUTPUT_READABLE_REALACCEL

@@ -1,6 +1,6 @@
 /*
  * To Do:
- * test => fix rotErrors calculations
+ * MPU RATE mpuReturn[6,7,8] (xyz)
  */
 
 #include <SoftwareSerial.h>
@@ -16,16 +16,18 @@ bool crash = true;
 int action;
 int highSpeed = 2400;
 int lowSpeed = 760;
+int minSpeed = 760;
 int off = 0;
 int runNumber = 1;
-int crashAngle = 30;
+int crashAngle = 15;
+int pid = 0;
 
-void getAction()
+void calibrateServos()
 {
-  action = Serial.read();
+  action = mySerial.read();
   Serial.print("\n\rPress X on controller to skip servo calibration, or press SELECT to calibrate servos.");
   while(!(action == 49 || action == 50)){
-    action = Serial.read();
+    action = mySerial.read();
   }
   if(action == 49){
     Serial.print("\n\rCalibrating. Please wait...");
@@ -34,9 +36,9 @@ void getAction()
     //mySerial.print("\n\rSet to HIGH");
     speeds[0] = speeds[1] = speeds[2] = speeds[3] = highSpeed;
     servoSetSpeeds(speeds);
-    action = Serial.read();
+    action = mySerial.read();
     while(!(action == 49)){
-      action = Serial.read();
+      action = mySerial.read();
     }
     //mySerial.print("\n\rBeep Beep");
     //mySerial.print("\n\rSet to LOW");
@@ -72,13 +74,37 @@ void avgSpeed(){
 
 void readActionUpdateSpeeds(){
   avgSpeed();
-  action = Serial.read();
-  if(action == 'r'){
+  action = mySerial.read();
+  if(action == 'r')
+  {
     crash = false;
     speeds[0] = speeds[1] = speeds[2] = speeds [3] = lowSpeed;
     control[3] = lowSpeed;
-    delay(100);
-    controlledThrottleIncrease();
+    minSpeed = lowSpeed;
+  }
+  if(action == 'u')
+  {
+    tuneStabilise(0.1,0,0);
+  }
+  if(action == 'i')
+  {
+    tuneStabilise(0,0.1,0);
+  }
+  if(action == 'o')
+  {
+    tuneStabilise(0,0,0.1);
+  }
+  if(action == 'j')
+  {
+    tuneStabilise(-0.1,0,0);
+  }
+  if(action == 'k')
+  {
+    tuneStabilise(0,-0.1,0);
+  }
+  if(action == 'l')
+  {
+    tuneStabilise(0,0,-0.1);
   }
   if(crash == true){
     speeds[0] = speeds[1] = speeds[2] = speeds [3] = off;
@@ -91,11 +117,29 @@ void readActionUpdateSpeeds(){
         crash = true;
         control[3] = off;
         break;
-      case 'w':
+      case 't':
         control[3] += 5;
+        minSpeed += 2.5;
+        break;
+      case 'g':
+        control[3] -= 5;
+        minSpeed -= 2.5;
+        break;
+      case 'd':
+        control[0] -= 5;
+        break;
+      case 'a':
+        control[0] += 5;
         break;
       case 's':
-        control[3] -= 5;
+        control[1] += 5;
+        break;
+      case 'w':
+        control[1] -= 5;
+        break;
+      case '1':
+        pid = (pid + 1) % 2;
+        Serial.println(pid);
         break;
     }
   }
@@ -110,9 +154,9 @@ void clampSpeeds()
     speeds[0] = highSpeed;
     }
     
-    if(speeds[0] < lowSpeed)
+    if(speeds[0] < minSpeed)
     {
-      speeds[0] = lowSpeed;
+      speeds[0] = minSpeed;
     }
     
     if(speeds[1] > highSpeed)
@@ -120,9 +164,9 @@ void clampSpeeds()
       speeds[1] = highSpeed;
     }
     
-    if(speeds[1] < lowSpeed)
+    if(speeds[1] < minSpeed)
     {
-      speeds[1] = lowSpeed;
+      speeds[1] = minSpeed;
     }
     
     if(speeds[2] > highSpeed)
@@ -130,9 +174,9 @@ void clampSpeeds()
       speeds[2] = highSpeed;
     }
     
-    if(speeds[2] < lowSpeed)
+    if(speeds[2] < minSpeed)
     {
-      speeds[2] = lowSpeed;
+      speeds[2] = minSpeed;
     }
     
     if(speeds[3] > highSpeed)
@@ -140,9 +184,9 @@ void clampSpeeds()
       speeds[3] = highSpeed;
     }
     
-    if(speeds[3] < lowSpeed)
+    if(speeds[3] < minSpeed)
     {
-      speeds[3] = lowSpeed;
+      speeds[3] = minSpeed;
     }
   }
 }
@@ -157,22 +201,12 @@ void unstableCrash(float* angles)
   }
 }
 
-void controlledThrottleIncrease()
-{
-  Serial.print("\n\rIncreasing throttle");
-  for (int i = 0; i <= 20; i++)
-  {
-    control[3]+=1;
-    delay(100);
-  }
-}
-
 void setup()
 {
   mySerial.begin(9600);
   Serial.begin(115200);
   delay(100);
-  getAction();
+  calibrateServos();
   mpuSetup();
   servoSetup();
   pidSetup();
@@ -188,19 +222,19 @@ void loop()
   //if (lastLoop >= 0)  loopTime += (now1 - lastLoop);
   //lastLoop = now1;
   float* result = mpuRunScript();
-  if(!crash && control[3] >= 800)
+  if(!crash && control[3] >= 800 && pid == 1)
   {
-    pidStage(result[3], speeds, control[0]);
+    pidStage(result[3], result[6], control[0], result[4], result[7], control[1], speeds); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
   }
   readActionUpdateSpeeds(); //10/250 ms
   clampSpeeds();
   unstableCrash(result);
   servoSetSpeeds(speeds); //10/250 ms
-  if(count++ >= 0)
+  /*if(count++ >= 0)
   {
     count = 0;
-    Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]); Serial.print("\t"); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[4]); Serial.print("\t"); Serial.print(result[5]);
+    //Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]); Serial.print("\t"); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[6]);
     //Serial.print("\tTime: "); Serial.print(loopTime);
     //loopTime = 0;
-  }
+  }*/
 }
