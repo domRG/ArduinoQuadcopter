@@ -144,6 +144,7 @@ VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measure
 VectorFloat gravity;    // [x, y, z]            gravity vector
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+int32_t gyro[3];
 
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
@@ -322,6 +323,7 @@ float* mpuRunScript() {
         #endif
 
         #ifdef OUTPUT_READABLE_YAWPITCHROLL
+            mpu.dmpGetGyro(gyro, fifoBuffer);
             // display Euler angles in degrees
             currentReadTime = millis() / 1000.0;
             mpu.dmpGetQuaternion(&q, fifoBuffer);
@@ -336,8 +338,10 @@ float* mpuRunScript() {
             //Serial.print("\t");
             //Serial.println(ypr[2] * 180/M_PI);
             mpuReturn[3] = (ypr[2] * 180/M_PI);
-
-            mpuCalculateRate();
+            mpuReturn[6] = gyro[0];
+            mpuReturn[7] = gyro[1];
+            mpuReturn[8] = gyro[2];
+            //mpuCalculateRate();
         #endif
 
         #ifdef OUTPUT_READABLE_REALACCEL

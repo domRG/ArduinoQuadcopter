@@ -8,15 +8,13 @@
 SoftwareSerial mySerial(11,12);//RX TX
 
 float speeds[] = {0,0,0,0}; //fL,fR,bL,bR
-float averageServoSpeed;
 float control[] = {0,0,0,0}; //rpyt
 //float balancePrecision = 1;
 int count = 0;
 bool crash = true;
 int action;
-int highSpeed = 2400;
-int lowSpeed = 760;
-int minSpeed = 760;
+int highSpeed = 2000;
+int lowSpeed = 1000;
 int off = 0;
 int runNumber = 1;
 int crashAngle = 15;
@@ -56,55 +54,37 @@ void calibrateServos()
   crash = true;
 }
 
-void avgSpeed(){
-  averageServoSpeed = (float)(speeds[0] + speeds[1] + + speeds[2] + speeds[3]) / 4;
-  if(averageServoSpeed > control[3]){
-    speeds[0] -= 2;
-    speeds[1] -= 2;
-    speeds[2] -= 2;
-    speeds[3] -= 2;
-  }
-  if(averageServoSpeed < control[3]){
-    speeds[0] += 2;
-    speeds[1] += 2;
-    speeds[2] += 2;
-    speeds[3] += 2;
-  }
-}
-
 void readActionUpdateSpeeds(){
-  avgSpeed();
-  action = mySerial.read();
+  action = Serial.read();
   if(action == 'r')
   {
     crash = false;
     speeds[0] = speeds[1] = speeds[2] = speeds [3] = lowSpeed;
     control[3] = lowSpeed;
-    minSpeed = lowSpeed;
   }
   if(action == 'u')
   {
-    tuneStabilise(0.1,0,0);
+    tuneRate(0.2,0,0);
   }
   if(action == 'i')
   {
-    tuneStabilise(0,0.1,0);
+    tuneRate(0,0.01,0);
   }
   if(action == 'o')
   {
-    tuneStabilise(0,0,0.1);
+    tuneRate(0,0,0.1);
   }
   if(action == 'j')
   {
-    tuneStabilise(-0.1,0,0);
+    tuneRate(-0.2,0,0);
   }
   if(action == 'k')
   {
-    tuneStabilise(0,-0.1,0);
+    tuneRate(0,-0.01,0);
   }
   if(action == 'l')
   {
-    tuneStabilise(0,0,-0.1);
+    tuneRate(0,0,-0.1);
   }
   if(crash == true){
     speeds[0] = speeds[1] = speeds[2] = speeds [3] = off;
@@ -119,11 +99,9 @@ void readActionUpdateSpeeds(){
         break;
       case 't':
         control[3] += 5;
-        minSpeed += 2.5;
         break;
       case 'g':
         control[3] -= 5;
-        minSpeed -= 2.5;
         break;
       case 'd':
         control[0] -= 5;
@@ -136,10 +114,6 @@ void readActionUpdateSpeeds(){
         break;
       case 'w':
         control[1] -= 5;
-        break;
-      case '1':
-        pid = (pid + 1) % 2;
-        Serial.println(pid);
         break;
     }
   }
@@ -154,9 +128,9 @@ void clampSpeeds()
     speeds[0] = highSpeed;
     }
     
-    if(speeds[0] < minSpeed)
+    if(speeds[0] < lowSpeed)
     {
-      speeds[0] = minSpeed;
+      speeds[0] = lowSpeed;
     }
     
     if(speeds[1] > highSpeed)
@@ -164,9 +138,9 @@ void clampSpeeds()
       speeds[1] = highSpeed;
     }
     
-    if(speeds[1] < minSpeed)
+    if(speeds[1] < lowSpeed)
     {
-      speeds[1] = minSpeed;
+      speeds[1] = lowSpeed;
     }
     
     if(speeds[2] > highSpeed)
@@ -174,9 +148,9 @@ void clampSpeeds()
       speeds[2] = highSpeed;
     }
     
-    if(speeds[2] < minSpeed)
+    if(speeds[2] < lowSpeed)
     {
-      speeds[2] = minSpeed;
+      speeds[2] = lowSpeed;
     }
     
     if(speeds[3] > highSpeed)
@@ -184,9 +158,9 @@ void clampSpeeds()
       speeds[3] = highSpeed;
     }
     
-    if(speeds[3] < minSpeed)
+    if(speeds[3] < lowSpeed)
     {
-      speeds[3] = minSpeed;
+      speeds[3] = lowSpeed;
     }
   }
 }
@@ -222,19 +196,19 @@ void loop()
   //if (lastLoop >= 0)  loopTime += (now1 - lastLoop);
   //lastLoop = now1;
   float* result = mpuRunScript();
-  if(!crash && control[3] >= 800 && pid == 1)
+  if(!crash && control[3] >= (lowSpeed))
   {
-    pidStage(result[3], result[6], control[0], result[4], result[7], control[1], speeds); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
+    pidStage(result[3], result[6], control[0], result[4], result[7], control[1], speeds, control[3]); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
   }
   readActionUpdateSpeeds(); //10/250 ms
   clampSpeeds();
   unstableCrash(result);
   servoSetSpeeds(speeds); //10/250 ms
-  /*if(count++ >= 0)
+  if(count++ >= 10)
   {
     count = 0;
-    //Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]); Serial.print("\t"); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[6]);
-    //Serial.print("\tTime: "); Serial.print(loopTime);
+    //Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]); Serial.print("\t"); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[4]);
+    Serial.print("\n\rresult[0,1,2]"); Serial.print(result[6]); Serial.print("   "); Serial.print(result[7]); Serial.print("   "); Serial.print(result[8]);
     //loopTime = 0;
-  }*/
+  }
 }
