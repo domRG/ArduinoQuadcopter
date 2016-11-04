@@ -207,8 +207,8 @@ void loop()
   if(count++ >= 10)
   {
     count = 0;
-    //Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]); Serial.print("\t"); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[4]);
-    Serial.print("\n\rresult[0,1,2]"); Serial.print(result[6]); Serial.print("   "); Serial.print(result[7]); Serial.print("   "); Serial.print(result[8]);
+    Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]);
+    Serial.print("\tresult[6,7,8]"); Serial.print(result[6]); Serial.print("\t"); Serial.print(result[7]); Serial.print("\t"); Serial.print(result[8]);
     //loopTime = 0;
   }
 }

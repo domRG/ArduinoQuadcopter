@@ -7,8 +7,8 @@ double pidXDesiredAngle, pidXActualAngle, pidXDesiredRate, pidXActualRate, pidXR
 double pidYDesiredAngle, pidYActualAngle, pidYDesiredRate, pidYActualRate, pidYRateOutput;
 
 //Specify the links and initial tuning parameters
-double stabiliseKp= 0, stabiliseKi= 0, stabiliseKd= 0; //double stabiliseKp= 12.5, stabiliseKi= 2.00, stabiliseKd= 0.50;
-double rateKp= 0.011, rateKi= 0.00, rateKd= 0.01; //double rateKp= 1.4, rateKi= 0.05, rateKd= 1.3; 
+double stabiliseKp = 0, stabiliseKi = 0, stabiliseKd = 0; //double stabiliseKp= 12.5, stabiliseKi= 2.00, stabiliseKd= 0.50;
+double rateKp = 0.00, rateKi = 0.00, rateKd = 0.00; //double rateKp= 1.4, rateKi= 0.05, rateKd= 1.3;
 
 PID xStabilisePID(&pidXActualAngle, &pidXDesiredRate, &pidXDesiredAngle, stabiliseKp, stabiliseKi, stabiliseKd, DIRECT);
 PID xRatePID(&pidXActualRate, &pidXRateOutput, &pidXDesiredRate, rateKp, rateKi, rateKd, DIRECT);
@@ -35,6 +35,15 @@ void tuneRate(double KpAdd, double KiAdd, double KdAdd)
   Serial.print("\n\r"); Serial.print(rateKp*100); Serial.print("\t"); Serial.print(rateKi*100); Serial.print("\t"); Serial.print(rateKd*100); Serial.print("   /100");
 }
 
+========== throttle pid declaration ==========
+
+double pidDesiredThrottle, pidActualThrottle, pidNewThrottle;
+double throttleKp= 0, throttleKi= 0, throttleKd= 0;
+
+double throttleKp = 0.00, throttleKi = 0.00, throttleKd = 0.00;
+
+PID throttlePID(&pidActualThrottle, &pidNewThrottle, &pidDesiredThrottle, throttleKp, throttleKi, throttleKd, DIRECT);
+
 ========== pid Setup ==========
 
 void pidSetup()
@@ -58,28 +67,20 @@ void pidSetup()
   throttlePID.SetSampleTime(10);
 }
 
-========== throttle pid declaration ==========
-
-double pidDesiredThrottle, pidActualThrottle, pidNewThrottle;
-double throttleKp= 0, throttleKi= 0, throttleKd= 0;
-
-PID throttlePID(&pidActualThrottle, &pidNewThrottle, &pidDesiredThrottle, throttleKp, throttleKi, throttleKd, DIRECT);
-
 ========== pid Run ==========
 
-void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float yActualAngle, float yActualRate, float yDesiredAngle, float* motorSpeeds, float currentThrottle, float desiredThrottle)
+void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float yActualAngle, float yActualRate, float yDesiredAngle, float* motorSpeeds, float desiredThrottle)
 {
   pidXActualAngle = xActualAngle;
   pidXActualRate = xActualRate;
   pidXDesiredAngle = xDesiredAngle;
-  pidXDesiredRate = 0; //testing
+  pidXDesiredRate = 0; //for testing only
 
   pidYActualAngle = yActualAngle;
   pidYActualRate = yActualRate;
   pidYDesiredAngle = yDesiredAngle;
   pidYDesiredRate = 0; //for testing only
 
-  pidActualThrottle = currentThrottle;
   pidDesiredThrottle = desiredThrottle;
   
   if (xRatePID.Compute() && yRatePID.Compute() && throttlePID.Compute()) //xStabilisePID.Compute() && xRatePID.Compute() && yStabilisePID.Compute() && yRatePID.Compute()
@@ -88,6 +89,8 @@ void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float 
     (motorSpeeds)[1] = pidNewThrottle - pidXRateOutput - pidYRateOutput;
     (motorSpeeds)[2] = pidNewThrottle + pidXRateOutput + pidYRateOutput;
     (motorSpeeds)[3] = pidNewThrottle - pidXRateOutput + pidYRateOutput;
+
+    pidActualThrottle = pidNewThrottle;
     //Serial.print("   "); Serial.print(pidYActualRate); Serial.print("   "); Serial.println(pidYRateOutput);
   }
 }
