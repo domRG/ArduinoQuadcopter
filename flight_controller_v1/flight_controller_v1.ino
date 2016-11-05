@@ -22,10 +22,10 @@ int pid = 0;
 
 void calibrateServos()
 {
-  action = mySerial.read();
+  action = Serial.read();
   Serial.print("\n\rPress X on controller to skip servo calibration, or press SELECT to calibrate servos.");
   while(!(action == 49 || action == 50)){
-    action = mySerial.read();
+    action = Serial.read();
   }
   if(action == 49){
     Serial.print("\n\rCalibrating. Please wait...");
@@ -34,9 +34,9 @@ void calibrateServos()
     //mySerial.print("\n\rSet to HIGH");
     speeds[0] = speeds[1] = speeds[2] = speeds[3] = highSpeed;
     servoSetSpeeds(speeds);
-    action = mySerial.read();
+    action = Serial.read();
     while(!(action == 49)){
-      action = mySerial.read();
+      action = Serial.read();
     }
     //mySerial.print("\n\rBeep Beep");
     //mySerial.print("\n\rSet to LOW");
@@ -208,7 +208,7 @@ void loop()
   {
     count = 0;
     Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]);
-    Serial.print("\tresult[6,7,8]"); Serial.print(result[6]); Serial.print("\t"); Serial.print(result[7]); Serial.print("\t"); Serial.print(result[8]);
+    //Serial.print("\tresult[6,7,8] : "); Serial.print(result[6]); Serial.print("\t"); Serial.print(result[7]); Serial.print("\t"); Serial.print(result[8]);
     //loopTime = 0;
   }
 }
