@@ -20,6 +20,7 @@ with ambitions to later implement on-board collision avoidance and then self-nav
 - [x] Throttle/Height control
 - [x] Throttle PID (to prevent large jumps in motor speeds - causes issues)
 - [x] Bluetooth communication (for remote debugging and Emergency Stop)
+- [ ] Radio transmitter and reciever for longer range communication
 - [ ] Distance sensors (aiming for at least 1 on each side (6 total)
 - [ ] Collision avoidance
 
