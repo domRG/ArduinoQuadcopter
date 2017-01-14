@@ -8,7 +8,7 @@ double pidYDesiredAngle, pidYActualAngle, pidYDesiredRate, pidYActualRate, pidYR
 
 //Specify the links and initial tuning parameters
 double stabiliseKp = 0.00, stabiliseKi = 0.00, stabiliseKd = 0.00; //double stabiliseKp= 12.5, stabiliseKi= 2.00, stabiliseKd= 0.50;
-double rateKp = 0.00, rateKi = 0.00, rateKd = 0.0105; //double rateKp= 1.4, rateKi= 0.05, rateKd= 1.3;
+double rateKp = 0.00, rateKi = 0.00, rateKd = 0.00; //0.0105; //double rateKp= 1.4, rateKi= 0.05, rateKd= 1.3;
 
 PID xStabilisePID(&pidXActualAngle, &pidXDesiredRate, &pidXDesiredAngle, stabiliseKp, stabiliseKi, stabiliseKd, DIRECT);
 PID xRatePID(&pidXActualRate, &pidXRateOutput, &pidXDesiredRate, rateKp, rateKi, rateKd, DIRECT);

@@ -13,8 +13,8 @@ float control[] = {0,0,0,0}; //rpyt
 int count = 0;
 bool crash = true;
 int action;
-int highSpeed = 2000;
-int lowSpeed = 1000;
+int highSpeed = 2400; //2000
+int lowSpeed = 0; //1000
 int off = 0;
 int runNumber = 1;
 int crashAngle = 15;
@@ -24,7 +24,7 @@ void beginServos()
 {
   Serial.print("\n\rPress X on controller to begin Servos");
   while(!action == 49){
-    action = Serial.read();
+    action = Serial.read(); //mySerial.read()
   }
   speeds[0] = speeds[1] = speeds[2] = speeds[3] = highSpeed;
   servoSetSpeeds(speeds);
@@ -41,9 +41,9 @@ void beginServos()
     //mySerial.print("\n\rSet to HIGH");
     speeds[0] = speeds[1] = speeds[2] = speeds[3] = highSpeed;
     servoSetSpeeds(speeds);
-    action = Serial.read();
+    action = Serial.read(); //mySerial.read()
     while(!(action == 49)){
-      action = Serial.read();
+      action = Serial.read(); //mySerial.read()
     }
     //mySerial.print("\n\rBeep Beep");
     //mySerial.print("\n\rSet to LOW");
@@ -62,7 +62,7 @@ void beginServos()
 }
 
 void readActionUpdateSpeeds(){
-  action = mySerial.read();
+  action = Serial.read(); //mySerial.read()
   if(action == 'r')
   {
     crash = false;
@@ -105,10 +105,16 @@ void readActionUpdateSpeeds(){
         control[3] = off;
         break;
       case 't':
-        control[3] += 5;
+        control[3] += 50;
         break;
       case 'g':
-        control[3] -= 5;
+        control[3] -= 50;
+        break;
+      case 'y':
+        control[3] = highSpeed;
+        break;
+      case 'h':
+        control[3] = lowSpeed;
         break;
       case 'd':
         control[0] -= 5;
@@ -185,7 +191,7 @@ void unstableCrash(float* angles)
 void setup()
 {
   mySerial.begin(9600);
-  Serial.begin(115200);
+  Serial.begin(250000);
   delay(100);
   beginServos();
   mpuSetup();
@@ -194,28 +200,32 @@ void setup()
   Serial.print("\n\rSetup complete");
   
 }
-//float x[] = {0,0,0,0,0,0,0,0,0};
-//int lastLoop = -1;
-//int loopTime = 0;
+
+unsigned long loopStart = 0;
+unsigned long loopPrev = 0;
+
 void loop()
 {
-  //int now1 = millis();
-  //if (lastLoop >= 0)  loopTime += (now1 - lastLoop);
-  //lastLoop = now1;
+  loopStart = micros();
+  int loopDur = loopStart - loopPrev;
+  loopPrev = loopStart;
+  double* rotorRps;
   float* result = mpuRunScript();
-  if(!crash && control[3] >= (lowSpeed))
+  if(!crash && control[3] >= (0)) //lowSpeed
   {
     pidStage(result[3], result[6], control[0], result[4], result[7], control[1], speeds, control[3]); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
+    rotorRps = rps_loop();
   }
   readActionUpdateSpeeds(); //10/250 ms
   clampSpeeds();
-  unstableCrash(result);
+  //unstableCrash(result);
   servoSetSpeeds(speeds); //10/250 ms
-  if(count++ >= 10)
+  if(count++ >= 0)
   {
     count = 0;
-    Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]);
+    //Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]); Serial.print("\t");
+    Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.print(rotorRps[3]); Serial.print("\t");
     //Serial.print("\n\r\tresult[6,7,8] : "); Serial.print(result[6]); Serial.print("\t"); Serial.print(result[7]); Serial.print("\t"); Serial.print(result[8]);
-    //loopTime = 0;
   }
+  Serial.println(loopDur);
 }
