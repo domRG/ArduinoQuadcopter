@@ -6,6 +6,7 @@ Servo frontLeft, frontRight, backLeft, backRight;
 
 // Begin servos
 void servoSetup(){
+  Serial.print("\n\rAssigning ports to servos");
   frontLeft.attach(10);
   frontRight.attach(9);
   backLeft.attach(5);
@@ -14,6 +15,7 @@ void servoSetup(){
   fR(off);
   bL(off);
   bR(off);
+  Serial.print("\n\rComplete");
 }
 
 void fL(int s){

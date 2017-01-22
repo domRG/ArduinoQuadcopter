@@ -35,21 +35,28 @@ void tuneRate(double KpAdd, double KiAdd, double KdAdd)
   Serial.print("\n\r"); Serial.print(rateKp*100); Serial.print("\t"); Serial.print(rateKi*100); Serial.print("\t"); Serial.print(rateKd*100); Serial.print("   /100");
 }
 
-//========== throttle pid declaration ==========
+//========== Rps/Throttle pid declaration ==========
 
-double pidDesiredThrottle, pidThrottleChange;
-double pidActualThrottle = 1000; 
+double throttleKp = 1.75, throttleKi = 0.00, throttleKd = 0.12;
 
-double throttleKp = 0.1, throttleKi = 0.00, throttleKd = 0.00;
+double pidDesiredThrottle[4];
+double pidThrottleChange[4];
+double pidActualRps[4];
 
-PID throttlePID(&pidActualThrottle, &pidThrottleChange, &pidDesiredThrottle, throttleKp, throttleKi, throttleKd, DIRECT);
+PID throttle0PID(&pidActualRps[0], &pidThrottleChange[0], &pidDesiredThrottle[0], throttleKp, throttleKi, throttleKd, DIRECT);
+PID throttle1PID(&pidActualRps[1], &pidThrottleChange[1], &pidDesiredThrottle[1], throttleKp, throttleKi, throttleKd, DIRECT);
+PID throttle2PID(&pidActualRps[2], &pidThrottleChange[2], &pidDesiredThrottle[2], throttleKp, throttleKi, throttleKd, DIRECT);
+PID throttle3PID(&pidActualRps[3], &pidThrottleChange[3], &pidDesiredThrottle[3], throttleKp, throttleKi, throttleKd, DIRECT);
 
 void tuneThrottle(double KpAdd, double KiAdd, double KdAdd)
 {
   throttleKp += KpAdd;
   throttleKi += KiAdd;
   throttleKd += KdAdd;
-  throttlePID.SetTunings(throttleKp, throttleKi, throttleKd);
+  throttle0PID.SetTunings(throttleKp, throttleKi, throttleKd);
+  throttle1PID.SetTunings(throttleKp, throttleKi, throttleKd);
+  throttle2PID.SetTunings(throttleKp, throttleKi, throttleKd);
+  throttle3PID.SetTunings(throttleKp, throttleKi, throttleKd);
   Serial.print("\n\r"); Serial.print(throttleKp*100); Serial.print("\t"); Serial.print(throttleKi*100); Serial.print("\t"); Serial.print(throttleKd*100); Serial.print("   /100");
 }
 
@@ -57,6 +64,8 @@ void tuneThrottle(double KpAdd, double KiAdd, double KdAdd)
 
 void pidSetup()
 {
+  Serial.print("\n\rPreparing PID");
+  
   xStabilisePID.SetMode(AUTOMATIC);
   xStabilisePID.SetOutputLimits(-50,50);
   xStabilisePID.SetSampleTime(10);
@@ -71,14 +80,25 @@ void pidSetup()
   yRatePID.SetOutputLimits(-50,50);
   yRatePID.SetSampleTime(10);
 
-  throttlePID.SetMode(AUTOMATIC);
-  throttlePID.SetOutputLimits(-50,50);
-  throttlePID.SetSampleTime(10);
+  throttle0PID.SetMode(AUTOMATIC);
+  throttle0PID.SetOutputLimits(-50,50);
+  throttle0PID.SetSampleTime(10);
+  throttle1PID.SetMode(AUTOMATIC);
+  throttle1PID.SetOutputLimits(-50,50);
+  throttle1PID.SetSampleTime(10);
+  throttle2PID.SetMode(AUTOMATIC);
+  throttle2PID.SetOutputLimits(-50,50);
+  throttle2PID.SetSampleTime(10);
+  throttle3PID.SetMode(AUTOMATIC);
+  throttle3PID.SetOutputLimits(-50,50);
+  throttle3PID.SetSampleTime(10);
+
+  Serial.print("\n\rComplete");
 }
 
 //========== pid Run ==========
 
-void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float yActualAngle, float yActualRate, float yDesiredAngle, float* motorSpeeds, float desiredThrottle)
+void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float yActualAngle, float yActualRate, float yDesiredAngle, float* motorSpeeds, float desiredThrottle, float* currentRps)
 {
   pidXActualAngle = xActualAngle;
   pidXActualRate = xActualRate;
@@ -100,18 +120,25 @@ void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float 
     pidYActualRate = 0;
   }
 
-  pidDesiredThrottle = desiredThrottle;
+  pidDesiredThrottle[0] = desiredThrottle;
+  pidDesiredThrottle[1] = desiredThrottle;
+  pidDesiredThrottle[2] = desiredThrottle;
+  pidDesiredThrottle[3] = desiredThrottle;
+  pidActualRps[0] = currentRps[0];
+  pidActualRps[1] = currentRps[1];
+  pidActualRps[2] = currentRps[2];
+  pidActualRps[3] = currentRps[3];
 
   //Serial.print(pidActualThrottle); Serial.print("\t"); Serial.print(pidDesiredThrottle); Serial.print("\n\r");
   
-  if (xRatePID.Compute() && yRatePID.Compute() && throttlePID.Compute()) //xStabilisePID.Compute() && xRatePID.Compute() && yStabilisePID.Compute() && yRatePID.Compute()
+  if (xRatePID.Compute() && yRatePID.Compute() && throttle0PID.Compute() && throttle1PID.Compute() && throttle2PID.Compute() && throttle3PID.Compute()) //xStabilisePID.Compute() && xRatePID.Compute() && yStabilisePID.Compute() && yRatePID.Compute()
   {
-    (motorSpeeds)[0] += pidThrottleChange + pidXRateOutput + pidYRateOutput;
-    (motorSpeeds)[1] += pidThrottleChange - pidXRateOutput + pidYRateOutput;
-    (motorSpeeds)[2] += pidThrottleChange + pidXRateOutput - pidYRateOutput;
-    (motorSpeeds)[3] += pidThrottleChange - pidXRateOutput - pidYRateOutput;
+    (motorSpeeds)[0] += pidThrottleChange[0] + pidXRateOutput + pidYRateOutput;
+    (motorSpeeds)[1] += pidThrottleChange[1] - pidXRateOutput + pidYRateOutput;
+    (motorSpeeds)[2] += pidThrottleChange[2] + pidXRateOutput - pidYRateOutput;
+    (motorSpeeds)[3] += pidThrottleChange[3] - pidXRateOutput - pidYRateOutput;
 
-    pidActualThrottle += pidThrottleChange;
+
     //Serial.print("   "); Serial.print(pidYActualRate); Serial.print("   "); Serial.println(pidYRateOutput);
   }
 }

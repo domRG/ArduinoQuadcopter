@@ -2,8 +2,8 @@ int irSignal[4];
 int readPin[4] = {A0,A1,A2,A3};
 int index[4] = {0,0,0,0};
 bool prevState[4];
-const int sensitivity = 100;
-const int numToAverage = 50;
+const int sensitivity = 300;
+const int numToAverage = 4;
 // The micro-second time for each revolution for each sensor over the last 'numToAverage' readings:
 // (This is actually micro-seconds divided by 4 to reduce potential for overlow.)
 unsigned int readings[4][numToAverage];
@@ -15,7 +15,7 @@ unsigned long prevTimeDiv4[4] = {0,0,0,0};
 unsigned long runTotalDiv4[4] = {0,0,0,0};
 
 // Revolutions per second for each sensor:
-double rps[4] = {0,0,0,0};
+float rps[4] = {0,0,0,0};
 
 void rps_setup() {
   int i;
@@ -30,7 +30,7 @@ void rps_setup() {
   }
 }
 
-double* rps_loop() {
+float* rps_loop() {
   // put your main code here, to run repeatedly:
   irSignal[0] = analogRead(A0);
   irSignal[1] = analogRead(A1);
@@ -80,7 +80,7 @@ void updateRPS(int i, unsigned long nowDiv4) {
       //Serial.print(runTotalDiv4[i]); Serial.print("\t");
       
       // Undo the divide by 4 so we get real rev-per-second:
-      rps[i] = (double)(numToAverage * 1000000 / 4) / runTotalDiv4[i]; // 1000000 microseconds in 1 second, 1000000/x = number of turns that fit in 1 second (averaged over 0.1 second)
+      rps[i] = (float)(numToAverage * 1000000 / 4) / runTotalDiv4[i]; // 1000000 microseconds in 1 second, 1000000/x = number of turns that fit in 1 second (averaged over 0.1 second)
       
     }
   }
