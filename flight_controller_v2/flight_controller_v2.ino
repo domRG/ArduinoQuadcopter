@@ -108,18 +108,21 @@ void readActionUpdateSpeeds(){
         setRunModeStop();
         break;
       case 't':
-        control[3] += 10;
-        Serial.println("START");
+        int val = Serial.parseInt()
+        control[3] = val;
         break;
-      case 'g':
-        control[3] -= 10;
-        break;
-      case 'y':
-        control[3] = maxRps;
-        break;
-      case 'h':
-        control[3] = minRps;
-        break;
+        //control[3] += 10;
+        //Serial.println("START");
+        //break;
+      //case 'g':
+        //control[3] -= 10;
+        //break;
+      //case 'y':
+        //control[3] = maxRps;
+        //break;
+      //case 'h':
+        //control[3] = minRps;
+        //break;
       case 'd':
         control[0] -= 5;
         break;
