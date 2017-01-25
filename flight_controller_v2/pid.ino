@@ -37,7 +37,7 @@ void tuneRate(double KpAdd, double KiAdd, double KdAdd)
 
 //========== Rps/Throttle pid declaration ==========
 
-double throttleKp = 1.75, throttleKi = 0.00, throttleKd = 0.12;
+double throttleKp = 0.00, throttleKi = 0.00, throttleKd = 0.00;
 
 double pidDesiredThrottle[4];
 double pidThrottleChange[4];

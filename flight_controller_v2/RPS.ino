@@ -3,13 +3,14 @@ int readPin[4] = {A0,A1,A2,A3};
 int index[4] = {0,0,0,0};
 bool prevState[4];
 const int sensitivity = 300;
-const int numToAverage = 4;
+const int numToAverage = 1;
 // The micro-second time for each revolution for each sensor over the last 'numToAverage' readings:
 // (This is actually micro-seconds divided by 4 to reduce potential for overlow.)
 unsigned int readings[4][numToAverage];
 
 // The absolute micro-seconds time (divided by 4) for the start of the current revolution:
 unsigned long prevTimeDiv4[4] = {0,0,0,0};
+unsigned long prevTimeDiv42[4] = {0,0,0,0};
 
 // Running total of all readings.  Is equal to sum(readings[i]):
 unsigned long runTotalDiv4[4] = {0,0,0,0};
@@ -58,6 +59,24 @@ void updateRPS(int i, unsigned long nowDiv4) {
   if (irSignal[i] > sensitivity)
   {
     prevState[i] = LOW;
+
+    revTimeDiv4 = (unsigned int)(nowDiv4 - prevTimeDiv4[i]);
+    prevTimeDiv42[i] = nowDiv4;  // update outside 'if' as we are starting another revolution whether or not the last one took too long
+    if (revTimeDiv4 > 0) {  // catches basic overflow
+    //Serial.print(revTimeDiv4); Serial.print("\t");
+      
+    readingIndex = index[i];
+    index[i] = (readingIndex + 1) % numToAverage;
+    //Serial.print(readingIndex); Serial.print("\t");
+     
+    //Serial.print(runTotalDiv4[i]); Serial.print("\t");  // old running total
+    //Serial.print(readings[i][readingIndex]); Serial.print("\t");  // old value we're removing
+    runTotalDiv4[i] = (runTotalDiv4[i] + revTimeDiv4) - readings[i][readingIndex];
+    readings[i][readingIndex] = revTimeDiv4;
+    //Serial.print(runTotalDiv4[i]); Serial.print("\t");
+    
+    // Undo the divide by 4 so we get real rev-per-second:
+    rps[i] = (float)(numToAverage * 1000000 / 4) / runTotalDiv4[i]; // 1000000 microseconds in 1 second, 1000000/x = number of turns that fit in 1 second (averaged over 0.1 second)
   }
   else if (prevState[i] == LOW)
   {
