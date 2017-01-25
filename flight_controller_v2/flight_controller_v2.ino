@@ -14,10 +14,12 @@ int count = 0;
 int action;
 int highSpeed = 2400; //2000
 int lowSpeed[] = {1400,1300,1350,1400}; //1000
-int minRps = 40;
+int minRps = 30;
 int maxRps = 125;
 int off = 0;
 int crashAngle = 15;
+
+float inputValue = 0;
 
 int runMode = 0; // 0 = Off, 1 = Idle, 2 = Running
 
@@ -108,8 +110,8 @@ void readActionUpdateSpeeds(){
         setRunModeStop();
         break;
       case 't':
-        float val = Serial.parseFloat()
-        control[3] = val;
+        inputValue = Serial.parseFloat();
+        control[3] = inputValue;
         break;
         //control[3] += 10;
         //Serial.println("START");
@@ -225,10 +227,10 @@ void loop()
   //loopPrev = loopStart;
   readActionUpdateSpeeds(); //10/250 ms
   float* result = mpuRunScript();
-  double* rotorRps = rps_loop();
+  float* rotorRps = rps_loop();
   if(runMode == 2) //lowSpeed
   {
-    pidStage(result[3], result[6], control[0], result[4], result[7], control[1], speeds, control[3]); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
+    pidStage(result[3], result[6], control[0], result[4], result[7], control[1], speeds, control[3], rotorRps); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
   }
   clampSpeeds();
   //unstableCrash(result);
@@ -236,8 +238,9 @@ void loop()
   if(count++ >= 0)
   {
     count = 0;
+    Serial.print(control[3]); Serial.print("\t"); Serial.println(rotorRps[1]);
     //Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]); Serial.print("\t");
-    Serial.print(control[3]); Serial.print("\t"); Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.print(rotorRps[3]); Serial.print("\t");
+    //Serial.print(control[3]); Serial.print("\t"); Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.print(rotorRps[3]); Serial.print("\t");
     //Serial.print("\n\r\tresult[6,7,8] : "); Serial.print(result[6]); Serial.print("\t"); Serial.print(result[7]); Serial.print("\t"); Serial.print(result[8]);
   }
   //Serial.println(loopDur);
