@@ -203,21 +203,12 @@ void unstableCrash(float* angles)
   }
 }
 
-void doNothing()
-{
-  
-}
 
-bool updateMPU()
-{
-  result = mpuRunScript();
-}
 
 void setup()
 {
   mySerial.begin(9600);
   Serial.begin(250000);
-  attachInterrupt(digitalPinToInterrupt(2), doNothing, RISING);
   delay(100);
   beginServos();
   mpuSetup();
@@ -231,12 +222,20 @@ void setup()
 unsigned long loopStart = 0;
 unsigned long loopPrev = 0;
 
+boolean isMPUValid(float * result) {
+  return !(result[3] > -1e-2f && result[3] < 1e-2f &&
+  result[4] > -1e-2f && result[4] < 1e-2f &&
+  result[5] > -1e-2f && result[5] < 1e-2f);
+}
+
 void loop()
 {
   readActionUpdateSpeeds(); //10/250 ms
   float* rotorRps = rps_loop();
-  if(updateMPU() && runMode == 2) //lowSpeed
+  result = mpuRunScript();
+  if (result != 0 && runMode == 2 && isMPUValid(result))
   {
+    Serial.print("\n\r\tMPU result[3,4,5] : "); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[4]); Serial.print("\t"); Serial.print(result[5]); Serial.print("\t");
     pidStage_MPU(result[3], result[6], control[0], result[4], result[7], control[1], control[3]); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
   }
   if(runMode == 2)
@@ -249,19 +248,18 @@ void loop()
     clampSpeeds();
   }
   //unstableCrash(result);
-  //servoSetSpeeds(speeds); //10/250 ms
-  if(count++ >= 0)
+  servoSetSpeeds(speeds); //10/250 ms
+  if(count++ >= 39)
   {
     count = 0;
-    //Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.println(rotorRps[3]);
+    //Serial.print(runMode); Serial.print("\t"); Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.println(rotorRps[3]);
     //Serial.print("\n\rControl[3] = "); Serial.print(control[3]);
     //Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.println(speeds[3]);// Serial.print("\t");
     //Serial.print(control[3]); Serial.print("\t"); Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.print(rotorRps[3]); Serial.print("\t");
-    Serial.print("\n\r\tresult[6,7,8] : "); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[4]); Serial.print("\t"); Serial.print(result[5]); Serial.print("\t");
-    //loopStart = micros();
-    //int loopDur = loopStart - loopPrev;
-    //loopPrev = loopStart;
-    //Serial.print(loopDur);
+    loopStart = micros();
+    int loopDur = (loopStart - loopPrev) / 40L;
+    loopPrev = loopStart;
+    Serial.println(loopDur);
   }
   
 }
