@@ -7,8 +7,8 @@ double pidXDesiredAngle, pidXActualAngle, pidXDesiredRate, pidXActualRate, pidXR
 double pidYDesiredAngle, pidYActualAngle, pidYDesiredRate, pidYActualRate, pidYRateOutput;
 
 //Specify the links and initial tuning parameters
-double stabiliseKp = 0.00, stabiliseKi = 0.00, stabiliseKd = 0.00; //double stabiliseKp= 12.5, stabiliseKi= 2.00, stabiliseKd= 0.50;
-double rateKp = 0.00, rateKi = 0.00, rateKd = 0.00; //0.0105; //double rateKp= 1.4, rateKi= 0.05, rateKd= 1.3;
+double stabiliseKp = 0.10, stabiliseKi = 0.00, stabiliseKd = 0.05; //double stabiliseKp= 12.5, stabiliseKi= 2.00, stabiliseKd= 0.50;
+double rateKp = 0.10, rateKi = 0.00, rateKd = 0.05; //0.0105; //double rateKp= 1.4, rateKi= 0.05, rateKd= 1.3;
 
 PID xStabilisePID(&pidXActualAngle, &pidXDesiredRate, &pidXDesiredAngle, stabiliseKp, stabiliseKi, stabiliseKd, DIRECT);
 PID xRatePID(&pidXActualRate, &pidXRateOutput, &pidXDesiredRate, rateKp, rateKi, rateKd, DIRECT);
@@ -37,7 +37,7 @@ void tuneRate(double KpAdd, double KiAdd, double KdAdd)
 
 //========== Rps/Throttle pid declaration ==========
 
-double throttleKp = 0.1, throttleKi = 0.00, throttleKd = 0.00;
+double throttleKp = 1.75, throttleKi = 0.00, throttleKd = 0.12;
 
 double pidDesiredThrottle[4];
 double pidThrottleChange[4];
@@ -98,7 +98,7 @@ void pidSetup()
 
 //========== pid Run ==========
 
-void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float yActualAngle, float yActualRate, float yDesiredAngle, float* motorSpeeds, float desiredThrottle, float* currentRps)
+void pidStage_MPU(float xActualAngle, float xActualRate, float xDesiredAngle, float yActualAngle, float yActualRate, float yDesiredAngle, float desiredThrottle)
 {
   pidXActualAngle = xActualAngle;
   pidXActualRate = xActualRate;
@@ -120,25 +120,30 @@ void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float 
     pidYActualRate = 0;
   }
 
-  pidDesiredThrottle[0] = desiredThrottle;
-  pidDesiredThrottle[1] = desiredThrottle;
-  pidDesiredThrottle[2] = desiredThrottle;
-  pidDesiredThrottle[3] = desiredThrottle;
+  if(xRatePID.Compute() && yRatePID.Compute())
+  {
+    pidDesiredThrottle[0] = desiredThrottle + pidXRateOutput + pidYRateOutput;
+    pidDesiredThrottle[1] = desiredThrottle - pidXRateOutput + pidYRateOutput;
+    pidDesiredThrottle[2] = desiredThrottle + pidXRateOutput - pidYRateOutput;
+    pidDesiredThrottle[3] = desiredThrottle - pidXRateOutput - pidYRateOutput;
+  }
+    //Serial.print(pidActualThrottle); Serial.print("\t"); Serial.print(pidDesiredThrottle); Serial.print("\n\r");
+}
+
+void pidStage_RPS(float* motorSpeeds, float* currentRps) //needs actualRps and desiredThrottle (and motor speeds)
+{
   pidActualRps[0] = currentRps[0];
   pidActualRps[1] = currentRps[1];
   pidActualRps[2] = currentRps[2];
   pidActualRps[3] = currentRps[3];
-
-  //Serial.print(pidActualThrottle); Serial.print("\t"); Serial.print(pidDesiredThrottle); Serial.print("\n\r");
-  
-  if (xRatePID.Compute() && yRatePID.Compute() && throttle0PID.Compute() && throttle1PID.Compute() && throttle2PID.Compute() && throttle3PID.Compute()) //xStabilisePID.Compute() && xRatePID.Compute() && yStabilisePID.Compute() && yRatePID.Compute()
+  if (throttle0PID.Compute() && throttle1PID.Compute() && throttle2PID.Compute() && throttle3PID.Compute()) //xStabilisePID.Compute() && xRatePID.Compute() && yStabilisePID.Compute() && yRatePID.Compute()
   {
-    (motorSpeeds)[0] += pidThrottleChange[0] + pidXRateOutput + pidYRateOutput;
-    (motorSpeeds)[1] += pidThrottleChange[1] - pidXRateOutput + pidYRateOutput;
-    (motorSpeeds)[2] += pidThrottleChange[2] + pidXRateOutput - pidYRateOutput;
-    (motorSpeeds)[3] += pidThrottleChange[3] - pidXRateOutput - pidYRateOutput;
+    (motorSpeeds)[0] += pidThrottleChange[0];
+    (motorSpeeds)[1] += pidThrottleChange[1];
+    (motorSpeeds)[2] += pidThrottleChange[2];
+    (motorSpeeds)[3] += pidThrottleChange[3];
 
 
     //Serial.print("   "); Serial.print(pidYActualRate); Serial.print("   "); Serial.println(pidYRateOutput);
   }
-}
+} 

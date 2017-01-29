@@ -203,12 +203,12 @@ void mpuSetup() {
     devStatus = mpu.dmpInitialize();
 
     // supply your own gyro offsets here, scaled for min sensitivity
-    mpu.setXGyroOffset(503); //497
-    mpu.setYGyroOffset(-50); //-53
-    mpu.setZGyroOffset(-57); //-57
-    mpu.setZAccelOffset(880); //879
-    mpu.setXAccelOffset(-3150); //-3109
-    mpu.setYAccelOffset(1136); //1139
+    mpu.setXGyroOffset(-18); //-18
+    mpu.setYGyroOffset(-69); //-69
+    mpu.setZGyroOffset(5); //5
+    mpu.setZAccelOffset(936); //936
+    mpu.setXAccelOffset(1906); //1906
+    mpu.setYAccelOffset(2375); //2375
 
     // make sure it worked (returns 0 if so)
     if (devStatus == 0) {
@@ -237,6 +237,7 @@ void mpuSetup() {
         Serial.println(F(")"));
     }
 
+    mpu.resetFIFO();
     // configure LED for output
     pinMode(LED_PIN, OUTPUT);
 }

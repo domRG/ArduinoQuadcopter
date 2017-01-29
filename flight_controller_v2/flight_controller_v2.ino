@@ -13,11 +13,13 @@ float control[] = {0,0,0,0}; //rpyt
 int count = 0;
 int action;
 int highSpeed = 2400; //2000
-int lowSpeed[] = {1400,1300,1350,1400}; //1000
+int lowSpeed[] = {1550,1450,1500,1550}; //1000
 int minRps = 30;
-int maxRps = 125;
+int maxRps = 70;
 int off = 0;
 int crashAngle = 15;
+
+float* result = 0;
 
 float inputValue = 0;
 
@@ -144,55 +146,52 @@ void readActionUpdateSpeeds(){
 
 void clampSpeeds()
 {
-  if (runMode != 0)
+  if(control[3] < minRps)
   {
-    if(control[3] < minRps)
-    {
-      control[3] = minRps;
-    }
-    if(control[3] > maxRps)
-    {
-      control[3] = maxRps;
-    }
-    if(speeds[0] > highSpeed)
-    {
-    speeds[0] = highSpeed;
-    }
-    
-    if(speeds[0] < lowSpeed[0])
-    {
-      speeds[0] = lowSpeed[0];
-    }
-    
-    if(speeds[1] > highSpeed)
-    {
-      speeds[1] = highSpeed;
-    }
-    
-    if(speeds[1] < lowSpeed[1])
-    {
-      speeds[1] = lowSpeed[1];
-    }
-    
-    if(speeds[2] > highSpeed)
-    {
-      speeds[2] = highSpeed;
-    }
-    
-    if(speeds[2] < lowSpeed[2])
-    {
-      speeds[2] = lowSpeed[2];
-    }
-    
-    if(speeds[3] > highSpeed)
-    {
-      speeds[3] = highSpeed;
-    }
-    
-    if(speeds[3] < lowSpeed[3])
-    {
-      speeds[3] = lowSpeed[3];
-    }
+    control[3] = minRps;
+  }
+  if(control[3] > maxRps)
+  {
+   control[3] = maxRps;
+  }
+  if(speeds[0] > highSpeed)
+  {
+  speeds[0] = highSpeed;
+  }
+  
+  if(speeds[0] < lowSpeed[0])
+  {
+    speeds[0] = lowSpeed[0];
+  }
+  
+  if(speeds[1] > highSpeed)
+  {
+    speeds[1] = highSpeed;
+  }
+  
+  if(speeds[1] < lowSpeed[1])
+  {
+    speeds[1] = lowSpeed[1];
+  }
+  
+  if(speeds[2] > highSpeed)
+  {
+    speeds[2] = highSpeed;
+  }
+  
+  if(speeds[2] < lowSpeed[2])
+  {
+    speeds[2] = lowSpeed[2];
+  }
+  
+  if(speeds[3] > highSpeed)
+  {
+    speeds[3] = highSpeed;
+  }
+  
+  if(speeds[3] < lowSpeed[3])
+  {
+    speeds[3] = lowSpeed[3];
   }
 }
 
@@ -204,10 +203,21 @@ void unstableCrash(float* angles)
   }
 }
 
+void doNothing()
+{
+  
+}
+
+bool updateMPU()
+{
+  result = mpuRunScript();
+}
+
 void setup()
 {
   mySerial.begin(9600);
   Serial.begin(250000);
+  attachInterrupt(digitalPinToInterrupt(2), doNothing, RISING);
   delay(100);
   beginServos();
   mpuSetup();
@@ -224,26 +234,34 @@ unsigned long loopPrev = 0;
 void loop()
 {
   readActionUpdateSpeeds(); //10/250 ms
-  float* result = mpuRunScript();
   float* rotorRps = rps_loop();
-  if(runMode == 2) //lowSpeed
+  if(updateMPU() && runMode == 2) //lowSpeed
   {
-    pidStage(result[3], result[6], control[0], result[4], result[7], control[1], speeds, control[3], rotorRps); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
+    pidStage_MPU(result[3], result[6], control[0], result[4], result[7], control[1], control[3]); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
   }
-  clampSpeeds();
+  if(runMode == 2)
+  {
+    pidStage_RPS(speeds, rotorRps);
+  }
+  
+  if (runMode == 1 || runMode == 2)
+  {
+    clampSpeeds();
+  }
   //unstableCrash(result);
-  servoSetSpeeds(speeds); //10/250 ms
-  if(count++ >= 39)
+  //servoSetSpeeds(speeds); //10/250 ms
+  if(count++ >= 0)
   {
     count = 0;
-    Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.println(rotorRps[3]);
-    //Serial.print("\n\rControl[3] = "); Serial.print(control[3]); Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.print(speeds[3]); Serial.print("\t");
+    //Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.println(rotorRps[3]);
+    //Serial.print("\n\rControl[3] = "); Serial.print(control[3]);
+    //Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.println(speeds[3]);// Serial.print("\t");
     //Serial.print(control[3]); Serial.print("\t"); Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.print(rotorRps[3]); Serial.print("\t");
-    //Serial.print("\n\r\tresult[6,7,8] : "); Serial.print(result[6]); Serial.print("\t"); Serial.print(result[7]); Serial.print("\t"); Serial.print(result[8]);
+    Serial.print("\n\r\tresult[6,7,8] : "); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[4]); Serial.print("\t"); Serial.print(result[5]); Serial.print("\t");
     //loopStart = micros();
     //int loopDur = loopStart - loopPrev;
     //loopPrev = loopStart;
-    //Serial.println(loopDur);
+    //Serial.print(loopDur);
   }
   
 }
