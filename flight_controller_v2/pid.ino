@@ -37,7 +37,7 @@ void tuneRate(double KpAdd, double KiAdd, double KdAdd)
 
 //========== Rps/Throttle pid declaration ==========
 
-double throttleKp = 0.10, throttleKi = 0.00, throttleKd = 0.00;
+double throttleKp = 1.30, throttleKi = 0.36, throttleKd = 0.21;
 
 double pidDesiredThrottle[4];
 double pidThrottleChange[4];
@@ -58,6 +58,22 @@ void tuneThrottle(double KpAdd, double KiAdd, double KdAdd)
   throttle2PID.SetTunings(throttleKp, throttleKi, throttleKd);
   throttle3PID.SetTunings(throttleKp, throttleKi, throttleKd);
   Serial.print("\n\r"); Serial.print(throttleKp*100); Serial.print("\t"); Serial.print(throttleKi*100); Serial.print("\t"); Serial.print(throttleKd*100); Serial.print("   /100");
+}
+
+void tune_d25()
+{
+  float temp = -(rateKd/4);
+  tuneRate(0,0,temp);
+}
+void tune_i50()
+{
+  float temp = -(rateKd/4);
+  tuneRate(0,temp,0);
+}
+void tune_p50()
+{
+  float temp = -(rateKd/4);
+  tuneRate(temp,0,0);
 }
 
 //========== pid Setup ==========
@@ -103,30 +119,36 @@ void pidStage_MPU(float xActualAngle, float xActualRate, float xDesiredAngle, fl
   pidXActualAngle = xActualAngle;
   pidXActualRate = xActualRate;
   pidXDesiredAngle = xDesiredAngle;
-  pidXDesiredRate = 0; //for testing only
-
-  if (pidXActualRate > -0.5 && pidXActualRate < 0.5)
-  {
-    pidXActualRate = 0;
-  }
 
   pidYActualAngle = yActualAngle;
   pidYActualRate = yActualRate;
   pidYDesiredAngle = yDesiredAngle;
-  pidYDesiredRate = 0; //for testing only
 
-  if (pidYActualRate > -0.5 && pidYActualRate < 0.5)
+  if(xStabilisePID.Compute() || yStabilisePID.Compute())
   {
-    pidYActualRate = 0;
-  }
-  if(xRatePID.Compute() || yRatePID.Compute())
-  {
-    pidDesiredThrottle[0] = desiredThrottle + pidXRateOutput + pidYRateOutput;
-    pidDesiredThrottle[1] = desiredThrottle - pidXRateOutput + pidYRateOutput;
-    pidDesiredThrottle[2] = desiredThrottle + pidXRateOutput - pidYRateOutput;
-    pidDesiredThrottle[3] = desiredThrottle - pidXRateOutput - pidYRateOutput;
-  }
+    
+    pidXDesiredRate = 0; //for testing only
+    pidYDesiredRate = 0; //for testing only
+    
+    if (pidXActualRate > -0.25 && pidXActualRate < 0.25)
+    {
+      pidXActualRate = 0;
+    }
+    
+    if (pidYActualRate > -0.25 && pidYActualRate < 0.25)
+    {
+      pidYActualRate = 0;
+    }
+    
+    if(xRatePID.Compute() || yRatePID.Compute())
+    {
+      pidDesiredThrottle[0] = desiredThrottle + pidXRateOutput + pidYRateOutput;
+      pidDesiredThrottle[1] = desiredThrottle - pidXRateOutput + pidYRateOutput;
+      pidDesiredThrottle[2] = desiredThrottle + pidXRateOutput - pidYRateOutput;
+      pidDesiredThrottle[3] = desiredThrottle - pidXRateOutput - pidYRateOutput;
+    }
     //Serial.print(pidActualThrottle); Serial.print("\t"); Serial.print(pidDesiredThrottle); Serial.print("\n\r");
+  }
 }
 
 void pidStage_RPS(float* motorSpeeds, float* currentRps) //needs actualRps and desiredThrottle (and motor speeds)

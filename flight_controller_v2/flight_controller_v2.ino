@@ -14,16 +14,55 @@ int count = 0;
 int action;
 int highSpeed = 2400; //2000
 int lowSpeed[] = {1550,1450,1500,1550}; //1000
-int minRps = 30;
+int minRps = 20;
 int maxRps = 70;
 int off = 0;
-int crashAngle = 15;
+int crashAngle = 30;
 
 float* result = 0;
 
 float inputValue = 0;
 
 int runMode = 0; // 0 = Off, 1 = Idle, 2 = Running
+
+//PID TUNING SCRIPT
+int section = 0; // 0 == D, -25%, P, -50%, I, -50%, P, -0.2 == 7
+unsigned long lastChangeTime = 0;
+
+void tunePID()
+{
+  switch (section)
+  {
+    case 0:
+      tuneRate(0,0,0.01);
+      break;
+    case 1:
+      tune_d25();
+      section++;
+      break;
+    case 2:
+      tuneRate(0.2,0,0);
+      break;
+    case 3:
+      tune_p50();
+      section++;
+      break;
+    case 4:
+      tuneRate(0,0.01,0);
+      break;
+    case 5:
+      tune_i50();
+      section++;
+      break;
+    case 6:
+      tuneRate(0.1,0,0);
+      break;
+    case 7:
+      tuneRate(-0.2,0,0);
+      section++;
+      break;
+  }
+}
 
 void setRunModeStop()
 {
@@ -42,6 +81,7 @@ void setRunModeIdle()
   servoSetSpeeds(speeds);
   control[3] = minRps;
   runMode = 1;
+  Serial.println(runMode);
 }
 
 void setRunModePID()
@@ -53,6 +93,7 @@ void setRunModePID()
   servoSetSpeeds(speeds);
   control[3] = minRps;
   runMode = 2;
+  Serial.println(runMode);
 }
 
 void beginServos()
@@ -62,8 +103,9 @@ void beginServos()
   Serial.print("\n\rServo initialisation complete");
 }
 
-void readActionUpdateSpeeds(){
-  action = Serial.read(); //mySerial.read()
+void readActionUpdateSpeeds()
+{
+  action = mySerial.read(); //mySerial.read()
   if(action == 'r')
   {
     setRunModeIdle();
@@ -74,7 +116,7 @@ void readActionUpdateSpeeds(){
   }
   if(action == 'u')
   {
-    tuneRate(0.001,0,0);
+    tuneRate(0.2,0,0);
   }
   if(action == 'i')
   {
@@ -82,11 +124,11 @@ void readActionUpdateSpeeds(){
   }
   if(action == 'o')
   {
-    tuneRate(0,0,0.001);
+    tuneRate(0,0,0.01);
   }
   if(action == 'j')
   {
-    tuneRate(-0.001,0,0);
+    tuneRate(-0.2,0,0);
   }
   if(action == 'k')
   {
@@ -94,20 +136,24 @@ void readActionUpdateSpeeds(){
   }
   if(action == 'l')
   {
-    tuneRate(0,0,-0.001);
+    tuneRate(0,0,-0.01);
   }
-  if(runMode == 0){
+  if(runMode == 0)
+  {
     setRunModeStop();
   }
-  if(runMode == 1){
-    switch (action){
+  if(runMode == 1)
+  {
+    switch (action)
+    {
       case 'p':
         setRunModePID();
         break;
     }
   }
   if(runMode == 2){
-    switch (action){
+    switch (action)
+    {
       case ' ':
         setRunModeStop();
         break;
@@ -116,11 +162,11 @@ void readActionUpdateSpeeds(){
         speeds[1] = inputValue;
         break;
       case 't':
-        control[3] += 10;
+        control[3] += 5;
         Serial.println("START");
         break;
       case 'g':
-        control[3] -= 10;
+        control[3] -= 5;
         break;
       case 'y':
         control[3] = maxRps;
@@ -139,6 +185,9 @@ void readActionUpdateSpeeds(){
         break;
       case 'w':
         control[1] -= 5;
+        break;
+      case 'm':
+        section++;
         break;
     }
   }
@@ -235,7 +284,7 @@ void loop()
   result = mpuRunScript();
   if (result != 0 && runMode == 2 && isMPUValid(result))
   {
-    Serial.print("\n\r\tMPU result[3,4,5] : "); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[4]); Serial.print("\t"); Serial.print(result[5]); Serial.print("\t");
+    //Serial.print("\n\r\tMPU result[3,4,5] : "); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[4]); Serial.print("\t"); Serial.print(result[5]); Serial.print("\t");
     pidStage_MPU(result[3], result[6], control[0], result[4], result[7], control[1], control[3]); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
   }
   if(runMode == 2)
@@ -247,7 +296,7 @@ void loop()
   {
     clampSpeeds();
   }
-  //unstableCrash(result);
+  unstableCrash(result);
   servoSetSpeeds(speeds); //10/250 ms
   if(count++ >= 39)
   {
@@ -256,10 +305,16 @@ void loop()
     //Serial.print("\n\rControl[3] = "); Serial.print(control[3]);
     //Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.println(speeds[3]);// Serial.print("\t");
     //Serial.print(control[3]); Serial.print("\t"); Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.print(rotorRps[3]); Serial.print("\t");
-    loopStart = micros();
-    int loopDur = (loopStart - loopPrev) / 40L;
-    loopPrev = loopStart;
-    Serial.println(loopDur);
+    loopStart = millis();
+    //int loopDur = (loopStart - loopPrev) / 40L;
+    //loopPrev = loopStart;
+    //Serial.println(loopDur);
+    
+    if(runMode == 2 && (loopStart - lastChangeTime) >= 5000)
+    {
+      tunePID();
+      lastChangeTime = loopStart;
+    }
   }
   
 }
