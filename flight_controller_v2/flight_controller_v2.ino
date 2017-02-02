@@ -246,7 +246,7 @@ void clampSpeeds()
 
 void unstableCrash(float* angles)
 {
-  if(angles[3]>crashAngle || angles[3]<-crashAngle || angles[4]>crashAngle || angles[4]<-crashAngle)
+  if((result != 0 && isMPUValid(result)) && (angles[3]>crashAngle || angles[3]<-crashAngle || angles[4]>crashAngle || angles[4]<-crashAngle))
   {
     setRunModeStop();
   }
@@ -284,7 +284,7 @@ void loop()
   result = mpuRunScript();
   if (result != 0 && runMode == 2 && isMPUValid(result))
   {
-    //Serial.print("\n\r\tMPU result[3,4,5] : "); Serial.print(result[3]); Serial.print("\t"); Serial.print(result[4]); Serial.print("\t"); Serial.print(result[5]); Serial.print("\t");
+    Serial.print("\n\r\tMPU result[6,7,5] : "); Serial.print(result[6]); Serial.print("\t"); Serial.print(result[7]); Serial.print("\t"); Serial.print(result[5]); Serial.print("\t");
     pidStage_MPU(result[3], result[6], control[0], result[4], result[7], control[1], control[3]); //void pidStage(float xActualAngle, float xActualRate, float xDesiredAngle, float* motorSpeeds)
   }
   if(runMode == 2)
@@ -301,7 +301,7 @@ void loop()
   if(count++ >= 39)
   {
     count = 0;
-    //Serial.print(runMode); Serial.print("\t"); Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.println(rotorRps[3]);
+    Serial.print(runMode); Serial.print("\t"); Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.println(rotorRps[3]);
     //Serial.print("\n\rControl[3] = "); Serial.print(control[3]);
     //Serial.print("\tMotor speeds = "); Serial.print(speeds[0]); Serial.print("\t"); Serial.print(speeds[1]); Serial.print("\t"); Serial.print(speeds[2]); Serial.print("\t"); Serial.println(speeds[3]);// Serial.print("\t");
     //Serial.print(control[3]); Serial.print("\t"); Serial.print(rotorRps[0]); Serial.print("\t"); Serial.print(rotorRps[1]); Serial.print("\t"); Serial.print(rotorRps[2]); Serial.print("\t"); Serial.print(rotorRps[3]); Serial.print("\t");
@@ -312,7 +312,7 @@ void loop()
     
     if(runMode == 2 && (loopStart - lastChangeTime) >= 5000)
     {
-      tunePID();
+      //tunePID();
       lastChangeTime = loopStart;
     }
   }

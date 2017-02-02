@@ -333,9 +333,9 @@ float* mpuRunScript() {
             //Serial.print("\t");
             //Serial.println(ypr[2] * 180/M_PI);
             mpuReturn[3] = (ypr[2] * 180/M_PI);
-            /*
             
-            */
+            
+            
             mpuCalculateRate();
         #endif
 
