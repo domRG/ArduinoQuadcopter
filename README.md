@@ -17,9 +17,11 @@ Project for building an Arduino controlled Quadcopter
 #### MPU
   - [x] MPU to read rotation
   - [x] MPU to calculate rate (work around but less accurate)
+  
 #### RPS
   - [x] Infrared digital encoder to measure RPS of each motor
   - [x] Adapt throttle PID to get motor RPS to set values
+  
 #### Ultrasonic
   - [ ] Distance sensors (aiming for at least 1 pointing down)
   - [ ] Collision avoidance
