@@ -1,6 +1,8 @@
 # ArduinoQuadcopter
 Project for building an Arduino controlled Quadcopter
 
+This is an old project, there is now a [*new version*](https://github.com/domRG/ArduinoQuadcopter2)
+
 ## __Description__
   This is a folder of the various stages I have made towards building an autonomous quadcopter using an Arduino Uno. The aim is to have it completely self-controlled (so no remote control or radio antennas!), with ambitions to later implement on-board collision avoidance and then self-navigation.
 
